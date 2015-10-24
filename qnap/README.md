@@ -13,9 +13,9 @@ Mit MPK:
 check_mk -P install qnap-1.2.mkp
     
 Manuell:  
-checksqnap_*                  nach /omd/sites/SITE/local/share/check_mk/checks/   kopieren
-checkman/qnap_*               nach /omd/sites/SITE/local/share/check_mk/checkman/ kopieren
-pnp-templates/check_mk-qnap_* nach /omd/sites/SITE/local/share/check_mk/pnp-templates/ kopieren
+checksqnap_*                  nach /omd/sites/SITE/local/share/check_mk/checks/        kopieren    
+checkman/qnap_*               nach /omd/sites/SITE/local/share/check_mk/checkman/      kopieren  
+pnp-templates/check_mk-qnap_* nach /omd/sites/SITE/local/share/check_mk/pnp-templates/ kopieren  
   
 **Screenshort:**
 ![ScreenShot](https://github.com/christianbur/check_mk/blob/master/qnap/screenshort_qnap.png)
