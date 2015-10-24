@@ -1,0 +1,29 @@
+title: Check Qnap fanse 
+agents: snmp
+author: Andre Eckstein <andre.eckstein@bechtle.com>
+license: GPL
+distribution: check_mk
+description:
+ This check monitors the fan speed of Qnap Storage devices. 
+
+item:
+ The first item is Fan1.
+ The second item is Fan2.
+
+perfdata: 
+ One variable: the current fan speed in rpm.
+
+inventory:
+ Both fans are automatically inventorized.
+
+examples:
+ # set default levels for all qnaps 
+ qnap_fans_default_levels = (5000, 5500)
+
+[parameters]
+warning (int): Speed at which a warning level is triggered
+ critical (int): Speed at wich w critical level is triggered
+
+[configuration]
+qnap_fans_default_levels (int, int): Default levels for warning
+ and critical. This is preset to {(6000,6500)}.

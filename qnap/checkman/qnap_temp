@@ -1,0 +1,29 @@
+title: Check Qnap Temperature 
+agents: snmp
+author: Andre Eckstein <andre.eckstein@bechtle.com>
+license: GPL
+distribution: check_mk
+description:
+ This check monitors the cpu and system temperature of Qnap Storage devices. 
+
+item:
+ The first item is the system temperature.
+ The second item is the cpu temperature.
+
+perfdata: 
+ One variable: the current temperature in degrees celsius.
+
+inventory:
+ CPU and system temperature sensors are automatically inventorized.
+
+examples:
+ # set default levels for all qnaps 
+ qnap_temp_default_levels = (25, 30)
+
+[parameters]
+warning (int): Temperature at which a warning level is triggered
+ critical (int): Critical level for temperature
+
+[configuration]
+qnap_temp_default_levels (int, int): Default levels for warning
+ and critical. This is preset to {(55,60)}.

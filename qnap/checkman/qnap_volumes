@@ -1,0 +1,25 @@
+title: Check Qnap Volumes 
+agents: snmp
+author: Andre Eckstein <andre.eckstein@bechtle.com>
+license: GPL
+distribution: check_mk
+description:
+ This check monitors the (raid) state of the volumes.
+
+item:
+ The items are the volumes.
+
+perfdata: 
+ no perfdata output is given
+
+inventory:
+ All volumes are inventorized automatically
+
+examples:
+ check is critical if the volume state is different than "Ready"
+
+[parameters]
+no_params 
+
+[configuration]
+no configuration possible

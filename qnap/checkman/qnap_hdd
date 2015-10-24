@@ -1,0 +1,28 @@
+title: Check Qnap HDD 
+agents: snmp
+author: Andre Eckstein <andre.eckstein@bechtle.com>
+license: GPL
+distribution: check_mk
+description:
+ This check monitors the state and the temperature of the harddisks.
+
+item:
+ The items are the disks hdd1-hddn.
+
+perfdata: 
+ One variable: the current temperature of the hdd in degrees celsius
+
+inventory:
+ All HDDS are inventorized automatically
+
+examples:
+ # set default levels for all qnaps 
+ qnap_hdd_temp_default_levels = (30,40)
+
+[parameters]
+warning (int): Temperature at which a warning level is triggered
+critical (int): Critical level for temperature
+
+[configuration]
+qnap_hdd_temp_default_levels (int, int): Default levels for warning
+ and critical. This is preset to {(40,45)}.
