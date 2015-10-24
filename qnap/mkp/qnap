@@ -1,6 +1,6 @@
 {'author': 'Andre Eckstein, Christian Burmeister',
  'description': 'Several checks to monitor Qnap Storage Devices',
- 'download_url': '',
+ 'download_url': 'https://github.com/christianbur/check_mk/tree/master/qnap',
  'files': {'agents': [],
            'checkman': ['qnap_fans', 'qnap_hdd', 'qnap_temp', 'qnap_volumes'],
            'checks': ['qnap_fans',
