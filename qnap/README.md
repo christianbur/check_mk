@@ -1,18 +1,20 @@
 **Beschreibung:**  
-Mit dem "qemu" CMK-Plugin können virtualle Maschinen in der qemu/KVM Umgebung überwacht werden
+Mit dem "qnap" CMK-Plugin können NAS-Geräte von Qnap überwacht werden
+Der Check wurde in der Version 1.1 von Andre Eckstein geschrieben, um den Check jedoch auf mein CMK-Instanz mit der Version 1.2.7 laufen zu lassen, musste ich einige kleinere Verändeurngen vornehmen.
+
+**TODO:**  
+die statische Inventory Funktion des "qnap_fans" Checks müsste überarbeitet werden, mein Qnap liefert jedoch keine Lüfterdaten im SNMP. 
   
 **Installation:**  
 Mit MPK:  
-check_mk -P install qemu-1.0.mkp
+check_mk -P install qnap-1.2.mkp
     
 Manuell:  
-CMK-Host:   den Agent aus "agent/plugins/qemu" nach "/usr/lib/check_mk_agent/local/" kopieren  
-CMK-Server: den Check aus "checks/qemu" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren  
+checksqnap_*                  nach /omd/sites/SITE/local/share/check_mk/checks/   kopieren
+checkman/qnap_*               nach /omd/sites/SITE/local/share/check_mk/checkman/ kopieren
+pnp-templates/check_mk-qnap_* nach /omd/sites/SITE/local/share/check_mk/pnp-templates/ kopieren
   
 **Screenshort:**
-![ScreenShot](https://github.com/christianbur/check_mk/blob/master/qemu_kvm/screenshort_qemu.png)
+![ScreenShot](https://github.com/christianbur/check_mk/blob/master/qnap/screenshort_qnap.png)
 
-**Performance Data:**
-  - cpu_%   
-  - memory_current_%  
-  - memory__assigned_MB  
+ 
