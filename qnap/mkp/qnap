@@ -17,6 +17,6 @@
  'name': 'qnap',
  'num_files': 12,
  'title': 'Check Qnap Storage',
- 'version': '1.2',
+ 'version': '1.3',
  'version.min_required': '1.1.10p3',
  'version.packaged': '1.2.7i3p3'}

@@ -1,4 +1,5 @@
 title: Check Qnap Volumes 
+catalog: hw/storagehw/qnap
 agents: snmp
 author: Andre Eckstein <andre.eckstein@bechtle.com>
 license: GPL

@@ -1,4 +1,5 @@
 title: Check Qnap Temperature 
+catalog: hw/storagehw/qnap
 agents: snmp
 author: Andre Eckstein <andre.eckstein@bechtle.com>
 license: GPL
