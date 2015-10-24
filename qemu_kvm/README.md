@@ -1,4 +1,4 @@
-**Beschreibung:** 
+**Beschreibung:**  
   Mit dem "qemu" CMK-Plugin können virtuallen Maschinen in der qemu/KVM Umgebung überwacht werden
   
 **Installation:**  
