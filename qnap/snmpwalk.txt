@@ -1,0 +1,59 @@
+OMD[prod]:~/var/check_mk/packages$ snmpwalk -c snmp6060 -v 2c 192.168.x.x 1.3.6.1.2.1.1.1.0
+SNMPv2-MIB::sysDescr.0 = STRING: Linux TS-219 4.2.0
+
+OMD[prod]:~/var/check_mk/packages$ snmpwalk -c snmp6060 -v 2c 192.168.x.x1.3.6.1.4.1.24681
+SNMPv2-SMI::enterprises.24681.1.2.1.0 = STRING: "9.30 %"
+SNMPv2-SMI::enterprises.24681.1.2.9.1.1.1 = INTEGER: 1
+SNMPv2-SMI::enterprises.24681.1.2.9.1.2.1 = STRING: "eth0"
+SNMPv2-SMI::enterprises.24681.1.2.9.1.3.1 = Counter32: 13172563
+SNMPv2-SMI::enterprises.24681.1.2.9.1.4.1 = Counter32: 9281261
+SNMPv2-SMI::enterprises.24681.1.2.9.1.5.1 = Counter32: 0
+SNMPv2-SMI::enterprises.24681.1.2.11.1.1.1 = INTEGER: 1
+SNMPv2-SMI::enterprises.24681.1.2.11.1.1.2 = INTEGER: 2
+SNMPv2-SMI::enterprises.24681.1.2.11.1.2.1 = STRING: "HDD1"
+SNMPv2-SMI::enterprises.24681.1.2.11.1.2.2 = STRING: "HDD2"
+SNMPv2-SMI::enterprises.24681.1.2.11.1.3.1 = STRING: "27 C/80 F"
+SNMPv2-SMI::enterprises.24681.1.2.11.1.3.2 = STRING: "26 C/78 F"
+SNMPv2-SMI::enterprises.24681.1.2.11.1.4.1 = INTEGER: 0
+SNMPv2-SMI::enterprises.24681.1.2.11.1.4.2 = INTEGER: 0
+SNMPv2-SMI::enterprises.24681.1.2.11.1.5.1 = STRING: "WD30EFRX-68EUZN0
+"
+SNMPv2-SMI::enterprises.24681.1.2.11.1.5.2 = STRING: "WD30EFRX-68EUZN0
+"
+SNMPv2-SMI::enterprises.24681.1.2.11.1.6.1 = STRING: "2.73 TB"
+SNMPv2-SMI::enterprises.24681.1.2.11.1.6.2 = STRING: "2.73 TB"
+SNMPv2-SMI::enterprises.24681.1.2.11.1.7.1 = STRING: "GOOD"
+SNMPv2-SMI::enterprises.24681.1.2.11.1.7.2 = STRING: "GOOD"
+SNMPv2-SMI::enterprises.24681.1.2.17.1.1.1 = INTEGER: 1
+SNMPv2-SMI::enterprises.24681.1.2.17.1.2.1 = STRING: "[Mirror Disk Volume: Drive 1 2]"
+SNMPv2-SMI::enterprises.24681.1.2.17.1.3.1 = STRING: "EXT4"
+SNMPv2-SMI::enterprises.24681.1.2.17.1.4.1 = STRING: "2.68 TB"
+SNMPv2-SMI::enterprises.24681.1.2.17.1.5.1 = STRING: "1.22 TB"
+SNMPv2-SMI::enterprises.24681.1.2.17.1.6.1 = STRING: "Ready"
+SNMPv2-SMI::enterprises.24681.1.3.9.1.1.1 = INTEGER: 1
+SNMPv2-SMI::enterprises.24681.1.3.9.1.2.1 = STRING: "eth0"
+SNMPv2-SMI::enterprises.24681.1.3.9.1.3.1 = Counter32: 13174853
+SNMPv2-SMI::enterprises.24681.1.3.9.1.4.1 = Counter32: 9282405
+SNMPv2-SMI::enterprises.24681.1.3.9.1.5.1 = Counter32: 0
+SNMPv2-SMI::enterprises.24681.1.3.11.1.1.1 = INTEGER: 1
+SNMPv2-SMI::enterprises.24681.1.3.11.1.1.2 = INTEGER: 2
+SNMPv2-SMI::enterprises.24681.1.3.11.1.2.1 = STRING: "HDD1"
+SNMPv2-SMI::enterprises.24681.1.3.11.1.2.2 = STRING: "HDD2"
+SNMPv2-SMI::enterprises.24681.1.3.11.1.3.1 = INTEGER: 27
+SNMPv2-SMI::enterprises.24681.1.3.11.1.3.2 = INTEGER: 26
+SNMPv2-SMI::enterprises.24681.1.3.11.1.4.1 = INTEGER: 0
+SNMPv2-SMI::enterprises.24681.1.3.11.1.4.2 = INTEGER: 0
+SNMPv2-SMI::enterprises.24681.1.3.11.1.5.1 = STRING: "WD30EFRX-68EUZN0
+"
+SNMPv2-SMI::enterprises.24681.1.3.11.1.5.2 = STRING: "WD30EFRX-68EUZN0
+"
+SNMPv2-SMI::enterprises.24681.1.3.11.1.6.1 = Counter64: 3000592982016
+SNMPv2-SMI::enterprises.24681.1.3.11.1.6.2 = Counter64: 3000592982016
+SNMPv2-SMI::enterprises.24681.1.3.11.1.7.1 = STRING: "GOOD"
+SNMPv2-SMI::enterprises.24681.1.3.11.1.7.2 = STRING: "GOOD"
+SNMPv2-SMI::enterprises.24681.1.3.17.1.1.1 = INTEGER: 1
+SNMPv2-SMI::enterprises.24681.1.3.17.1.2.1 = STRING: "[Mirror Disk Volume: Drive 1 2]"
+SNMPv2-SMI::enterprises.24681.1.3.17.1.3.1 = STRING: "EXT4"
+SNMPv2-SMI::enterprises.24681.1.3.17.1.4.1 = Counter64: 2882740748
+SNMPv2-SMI::enterprises.24681.1.3.17.1.5.1 = Counter64: 1307052460
+SNMPv2-SMI::enterprises.24681.1.3.17.1.6.1 = STRING: "Ready"
