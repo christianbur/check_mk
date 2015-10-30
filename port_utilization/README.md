@@ -1,11 +1,11 @@
 **Beschreibung:**  
-Der Check port_utilization zeigt die folgendes an:
+Der Check port_utilization zeigt die folgenden Werte an:
   - Gesamtanzahl der Switchports
       - die davon aktiven Ports
-  - Die Trunk/Uplink Ports (von HP und Cisco Switchen)
+  - Die Trunk/Uplink von HP und Cisco Switchen
       - die davon aktiven Ports
   - Die Access-Ports
-      die davon aktiven Ports
+     - die davon aktiven Ports
 
 **Installation:**  
 Manuell:  
