@@ -18,5 +18,5 @@ Der orginale snmp_info Check sollte deaktiviert werden
 Seriennummer hat sich geändert
 ![ScreenShot](https://github.com/christianbur/check_mk/blob/master/snmp_info_v2/screenshort_snmp_info_v2_changed.png)
 
-Cisco Firmware-Version ohne SSH
+Cisco Firmware ohne SSH
 ![ScreenShot](https://github.com/christianbur/check_mk/blob/master/snmp_info_v2/screenshort_snmp_info_v2_keineSSHFirmware.png)
