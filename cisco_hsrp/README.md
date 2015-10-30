@@ -7,7 +7,7 @@ CMK-Server: den Check aus "checks/cisco_hsrp" nach "/omd/sites/SITE/local/share/
 
 
 
-**Screenshort:**
+**Screenshort:**  
 Active HSRP-Router
 ![ScreenShot](https://github.com/christianbur/check_mk/blob/master/cisco_hsrp/2.png)
 
