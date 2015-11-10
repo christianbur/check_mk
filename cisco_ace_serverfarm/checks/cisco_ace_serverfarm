@@ -1,0 +1,299 @@
+#!/usr/bin/python
+
+
+
+#http://www.oidview.com/mibs/9/CISCO-ENHANCED-SLB-MIB.html
+#http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?local=en&translate=Translate&objectInput=cesServerFarmRserverAdminStatus
+#http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=cesServerFarmRserverOperStatus&translate=Translate&submitValue=SUBMIT&submitClicked=true
+
+
+def decode_oid_ace(oid):
+
+        # Example:
+        #(.1.3.6.1.4.1.9.9.470.    1.1.3.1.12                     ).1.   8.73.78.84.69.82.68.65.75.20.87.48.49.48.49.83.87.49.50.55.54.45.73.78.84.69.82.68.65.75.0
+        #(CISCO-ENHANCED-SLB-MIB:: cesServerFarmRserverFailedConns).1.   8 "INTERDAK"              20 "W0101SW1276-INTERDAK"                                     .0
+
+        farm_string = "LEER"
+        server_string = "LEER"
+        port = "LEER"
+
+        oid_list = oid.split('.')
+        farm_array = []
+        server_array = []
+
+        oid_list.reverse() # Liste drehen, da pop() von hinten entnimmt
+        oid_list.pop()  # erste ".1." entfernen
+
+        len_farm = int(oid_list.pop())  # Serverfarm laenge speichern (im Beispiel 8)
+        for i in range(len_farm):
+                # Mit unichr Ascii-Zahl in Ascii-Buchstabe wandeln und an array haengen
+                farm_array.append(unichr(int(oid_list.pop())))
+
+        len_server = int(oid_list.pop()) # Server laenge speichern (im Beispiel 20)
+        for i in range(len_server):
+                # Mit unichr Ascii-Zahl in Ascii-Buchstabe wandeln und an array haengen
+                server_array.append(unichr(int(oid_list.pop())))
+
+        port = oid_list.pop()
+
+        # Aus dem Array ein Sting machen
+        farm_string = "".join(farm_array)
+        server_string = "".join(server_array)
+
+        return (str(farm_string), str(server_string), str(port))
+
+
+def decode_serverfarm(serverfarm_item, info):
+
+        serverfarm_map = {} 
+
+        for serverfarm_oid in info:
+                node = serverfarm_oid[0]
+                for oid, value in serverfarm_oid[1:]:
+                        (serverfarm, server, port) = decode_oid_ace(oid)
+                        map_key = serverfarm + server + port
+                        if serverfarm_item == serverfarm:
+
+                                if node not in serverfarm_map.keys():
+                                        serverfarm_map[node] = {}
+
+                                if map_key not in serverfarm_map[node].keys():
+                                        serverfarm_map[node][map_key]  = [node, serverfarm, server, port, value]
+                                else:
+                                        serverfarm_map[node][map_key] += [value]
+
+
+        return serverfarm_map
+
+def decode_singel_mode(item, params, serverfarm_list, node):
+        server_inService = []
+        server_error = []
+        server_error_detail = []
+        server_outofservice = []
+        perfdata = []
+
+        for server in serverfarm_list.values():
+                cesServerFarmRserverOperStatus_inService = "2"
+                cesServerFarmRserverOperStatus_outOfService = "1"
+                if server[5] == cesServerFarmRserverOperStatus_inService:
+                        server_inService += [server[2] + " --> " +  server[6]]
+                elif server[5] == cesServerFarmRserverOperStatus_outOfService:
+                        server_outofservice += [server[2] + ":" + server[3] + " --> " +  server[6]]
+                else:
+                        server_error += [server[2] + ":" + server[3] + " --> " +  server[6]]
+                        server_error_detail += server
+
+                if len(server) == 10:
+                        if node == None:
+                                node_prefix = ""
+                        else:
+                                node_prefix = node + "__"
+                        perfdata += [   (node_prefix + "TotalConns_"   + server[2] + "_" + server[3], server[7]),
+                                        (node_prefix + "FailedConns_"  + server[2] + "_" + server[3], server[8]),
+                                        (node_prefix + "CurrentConns_" + server[2] + "_" + server[3], server[9])]
+
+
+
+
+        msg  = "Serverfarm details: "
+        msg += "rServers: " + str(len(serverfarm_list))
+        msg += ", inService: " + str(len(server_inService))
+                        
+
+        retrun_status = 4
+        if len(serverfarm_list) == len(server_inService):
+                msg += ""
+                retrun_status = 0
+
+        elif len(serverfarm_list) == ( len(server_inService) + len(server_outofservice) ):
+                if len(server_inService) == 0:
+                        msg += ", OutOfOrder: " + str(len(server_outofservice))
+                        msg += " --- All rServer out-of-service -> INAKTIV"
+                        retrun_status = 0
+                else:
+                        msg += ", OutOfOrder: " + str(len(server_outofservice))
+                        retrun_status = 0
+
+        elif len(serverfarm_list) != ( len(server_inService) + len(server_outofservice) + len(server_error) ):
+                msg += " --- serverfarm_list != (server_inService + server_outofservice + server_error)"
+                retrun_status = 3
+
+        else:
+                if len(server_inService) == 0:
+                        msg += ", OutOfOrder: " + str(len(server_outofservice))
+                        msg += ", Error: " + str(len(server_error))
+                        msg += ", Error_details: " + str(server_error)
+                        msg += " --- Serverfarm INACTIVE (!!) !"
+                        retrun_status = 2
+                else:
+                        msg += ", OutOfOrder: " + str(len(server_outofservice))
+                        msg += ", Error: " + str(len(server_error))
+                        msg += "(!) "
+                        msg += ",Error_details: " + str(server_error)
+                        retrun_status = 1
+
+        return (retrun_status, msg, perfdata) 
+
+#def wato_return_state(params, item, retrun_status, msg):
+#        # WATO return_state Config
+#        if params != None:
+#                retrun_status_orginal = retrun_status
+#                state_descr = {
+#                        0:"OK",
+#                        1:"WARN",
+#                        2:"CRIT",
+#                        3:"UNKN"}
+#
+#               individual_wato_config = False
+#                ace_serverfarm_wato = params.get('ace_serverfarm_wato',[])
+#                for sf in ace_serverfarm_wato:
+#                        regex_serverfarm = sf[0].replace("Farm: ","")
+#                        if get_regex(regex_serverfarm).match(item):
+#                               individual_wato_config = True
+#                                return_crit =  sf[1]
+#                                return_warn =  sf[2]
+#                                if retrun_status_orginal == 2 and return_crit != None:
+#                                        msg += " --- [Indiviual-Rule, orginal return status: " + state_descr[retrun_status_orginal] + " ]"
+#                                        retrun_status = int(return_crit)
+#                                if retrun_status_orginal == 1 and return_warn != None:
+#                                        msg += " --- [Indiviual-Rule, orginal return status: " + state_descr[retrun_status_orginal] + " ]"
+#                                        retrun_status = int(return_warn)
+#
+#               if not individual_wato_config:
+#                       return_default_crit = params.get('default_crit', None)
+#                       if retrun_status_orginal == 2 and return_default_crit != None:
+#                               msg += " --- [Default-Rule, orginal return status: " + state_descr[retrun_status_orginal] + " ]"
+#                               retrun_status = int(return_default_crit)
+#
+#                       return_default_warn = params.get('default_warn', None)
+#                       if retrun_status_orginal == 1 and return_default_warn != None:
+#                               msg += " --- [Default-Rule, orginal return status: " + state_descr[retrun_status_orginal] + " ]"
+#                               retrun_status = int(return_default_warn)
+#       return (retrun_status, msg)
+
+
+def node_state_all_equal(node_status):
+        if len(node_status) > 1:
+                first_node = node_status.keys()[0]
+
+                node_equale = True
+
+                for node in node_status.keys():
+                        (retrun_status_A, msg_A, perfdata_A) = node_status[node]
+                        (retrun_status_B, msg_B, perfdata_B) = node_status[first_node]
+                        if msg_A != msg_B:
+                                node_equale = False
+                return node_equale
+        else:
+                return False
+
+def inventory_cisco_ace_serverfarm(info):
+
+        inventory = []
+        for serverfarm_oid in info:
+                node = serverfarm_oid[0]
+                for oid, value in serverfarm_oid[1:]:
+                        (serverfarm, server, port) = decode_oid_ace(oid)
+                        new_serverfarm = (serverfarm, None)
+                        if new_serverfarm not in inventory:
+                                inventory.append(new_serverfarm)
+
+        return inventory
+
+
+def check_cisco_ace_serverfarm(item, params, info):
+
+        if len(info) == 0:
+                return (3, "No data retrieved")
+        
+        serverfarm_list = decode_serverfarm(item, info)
+
+        if len(serverfarm_list) == 1:
+                # not a "Clustered services"
+                for node in serverfarm_list.keys():
+                        (retrun_status, msg, perfdata) = decode_singel_mode(item, params, serverfarm_list[node], node)
+                        (retrun_status, msg) = wato_return_state_lb(params, item, retrun_status, msg, "Farm: ")
+                        return (retrun_status, msg, perfdata)
+
+        else:
+                # Clustered services
+                node_status = {}
+                min_return_state = {}
+                for node in serverfarm_list.keys():
+                        (retrun_status, msg, perfdata) = decode_singel_mode(item, params, serverfarm_list[node], node)
+                        node_status[node] = (retrun_status, msg, perfdata)
+                        min_return_state[node] = retrun_status
+
+
+                final_perfdata = []
+                final_msg      = ""
+
+                if len(min_return_state.values()) == 0:
+                        return (3, "Serverfarm not found")
+                else:
+                        final_return_status =  min(min_return_state.values())
+
+                if node_state_all_equal(node_status):
+                        for node in min_return_state.keys():
+                                (retrun_status, msg, perfdata) = node_status[node]
+                                if len(final_msg) == 0:
+                                        final_msg = msg
+                                final_perfdata += perfdata
+
+                else:
+                        # Check WATO-Parameter
+                        show_only_short_status_of_other_nodes = False
+                        ace_serverfarm_wato = params.get('ace_serverfarm_wato',[])
+                        for sf in ace_serverfarm_wato:
+                                regex_serverfarm = sf[0].replace("Farm: ","")
+                                if get_regex(regex_serverfarm).match(item):
+                                        if sf[3] == True:
+                                                show_only_short_status_of_other_nodes = True
+
+                        if show_only_short_status_of_other_nodes:
+                                for node in min_return_state.keys():
+                                        if node_status[node][0] == final_return_status and len(final_msg) == 0:
+                                                (retrun_status, msg, perfdata) = node_status[node]
+                                                final_msg = msg + " -- other Cluster-Nodes: "
+                                                for other_node in node_status:
+                                                        if node == other_node : continue
+                                                        (other_retrun_status, other_msg, other_perfdata) = node_status[other_node]
+                                                        state_map = {0:"OK", 1:"WARN", 2:"CRIT", 3:"UNKN"}
+                                                        final_msg += "%s -> %s, " % (other_node, state_map[other_retrun_status])
+                                        final_perfdata += perfdata
+                        else:
+ 
+                                final_msg_other_nodes = []
+                                for node in min_return_state.keys():
+                                        if node_status[node][0] == final_return_status and len(final_msg) == 0:
+                                                (retrun_status, msg, perfdata) = node_status[node]
+                                                final_msg = "Cluster-Node: " + node + " -- " + msg
+                                        else:
+                                                (retrun_status, msg, perfdata) = node_status[node]
+                                                final_msg_other_nodes = ["Cluster-Node: " + node + " -- " + msg]
+                                final_perfdata += perfdata
+
+                                final_msg +=  " ------ other Cluster-Nodes: " + str(final_msg_other_nodes)
+
+                (final_return_status, final_msg) = wato_return_state_lb(params, item, retrun_status, msg, "Farm: ")
+                return (final_return_status, final_msg, final_perfdata)
+
+
+
+check_info["cisco_ace_serverfarm"] = {
+    'check_function':          check_cisco_ace_serverfarm,
+    'inventory_function':      inventory_cisco_ace_serverfarm,
+    'service_description':     'Farm: %s',
+    'has_perfdata':            True,
+    'node_info':               True,
+    'group':                   "cisco_ace_serverfarm",
+    'includes'              : [ 'lb.include' ],
+    'snmp_info':               [( ".1.3.6.1.4.1.9.9.470.1.1.3.1", [OID_END, '6']),  #cesServerFarmRserverAdminStatus
+                                ( ".1.3.6.1.4.1.9.9.470.1.1.3.1", [OID_END, '7']), #cesServerFarmRserverOperStatus
+                                ( ".1.3.6.1.4.1.9.9.470.1.1.3.1", [OID_END, '8']), #cesServerFarmRserverStateDescr
+                                ( ".1.3.6.1.4.1.9.9.470.1.1.3.1", [OID_END, '11']), # cesServerFarmRserverTotalConns
+                                ( ".1.3.6.1.4.1.9.9.470.1.1.3.1", [OID_END, '12']), # cesServerFarmRserverFailedConns
+                                ( ".1.3.6.1.4.1.9.9.470.1.1.3.1", [OID_END, '14']), # cesServerFarmRserverCurrentConns
+                                ],
+    'snmp_scan_function':      lambda oid: "ACE 4710 Application Control Engine Appliance" in oid(".1.3.6.1.2.1.1.1.0"),
+}

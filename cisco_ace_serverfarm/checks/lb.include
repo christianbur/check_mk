@@ -1,0 +1,39 @@
+#!/usr/bin/python
+
+
+def wato_return_state_lb(params, item, return_status, msg, farm_prefix):
+        # WATO return_state Config
+        if params != None:
+                return_status_orginal = return_status
+                state_descr = {
+                        0:"OK",
+                        1:"WARN",
+                        2:"CRIT",
+                        3:"UNKN"}
+
+                individual_wato_config = False
+                ace_serverfarm_wato = params.get('ace_serverfarm_wato',[])
+                for sf in ace_serverfarm_wato:
+                        regex_serverfarm = sf[0].replace(farm_prefix,"")
+                        if get_regex(regex_serverfarm).match(item):
+                                individual_wato_config = True
+                                return_crit =  sf[1]
+                                return_warn =  sf[2]
+                                if return_status_orginal == 2 and return_crit != None:
+                                        msg += " --- [Indiviual-Rule, orginal return status: " + state_descr[return_status_orginal] + " ]"
+                                        return_status = int(return_crit)
+                                if return_status_orginal == 1 and return_warn != None:
+                                        msg += " --- [Indiviual-Rule, orginal return status: " + state_descr[return_status_orginal] + " ]"
+                                        return_status = int(return_warn)
+
+                if not individual_wato_config:
+                        return_default_crit = params.get('default_crit', None)
+                        if return_status_orginal == 2 and return_default_crit != None:
+                                msg += " --- [Default-Rule, orginal return status: " + state_descr[return_status_orginal] + " ]"
+                                return_status = int(return_default_crit)
+
+                        return_default_warn = params.get('default_warn', None)
+                        if return_status_orginal == 1 and return_default_warn != None:
+                                msg += " --- [Default-Rule, orginal return status: " + state_descr[return_status_orginal] + " ]"
+                                return_status = int(return_default_warn)
+        return (return_status, msg)
