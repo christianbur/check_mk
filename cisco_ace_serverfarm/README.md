@@ -36,7 +36,7 @@ Zunächst muss ein Cluster aus den beiden Hosts des gleichen Contextes erstellt 
 
 
 
-***INFO:***   
+**INFO:**  
 Auf einem Cisco ACE Loadbalancer können unterschiedliche Contexte angelegt werden.
 Die Contexte können auf zwei unterschiedliche Arten abgefragt werden:
   1. Über die IP des Admin-Contextes
@@ -46,7 +46,7 @@ Die Contexte können auf zwei unterschiedliche Arten abgefragt werden:
       - Ich habe für jeden Context in CMK einen Host mit der jeweiligen IP-Adresse angelegt, somit ist die SNMP-Community bei allen Contexten gleich.
       - Der Check cisco_ace_serverfarm funktioniert nicht im Admin-Context.
 
-***TODO:***   
+**TODO:**   
 Der Plugin ist für Version 1.2.6p5 entwickelt worden, mit Version 1.2.7 muss die Datei ace_serverfarm.py angepasst werden, dies habe ich bis jetzt noch nicht gemacht. 
 
 **Installation:**     
