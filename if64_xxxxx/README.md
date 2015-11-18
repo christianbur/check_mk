@@ -29,9 +29,10 @@ Zu den relevanten Ports zähle ich folgendes:
 Bei normalen Access-Switchen gibt es in der Regel nur 1 bis 2 Uplinks zu andern Switchen, der if64_trunk Check findet daher auch nur diese Uplink Ports.
 Sobald ein neuer relevanter Ports auf einem Switch konfiguriert wird, wird er durch das "Check_MK inventory" automatisch erkannt. 
 
-
+***Host Inventory (CMK 1.2.7):***  
+In CMK 1.2.7 hat dich die API im if64 Check etwas geändert, daher müsste ich den Check etwas anpassen. Da es jedoch auch eine neue Inventory Fuktion gibt, habe ich den Check komplett umgeschrieben um die Funktionen einfach im Inventory-Check switch_if verwenden zu könne. Bisher ist der Check aber nur in der Testumgebung getestet. 
 	
-***Host Discovery:***
+***Host Discovery:***  
 CheckMK bietet mit "Check_MK inventory" eine Möglichkeit neue Services auf dem Host zu finden, es bietet jedoch keine Möglichkeit neue Hosts zu finden.
 Bei der Entwicklung der beiden Checks ist mir daher die Idee gekommen dies zu realisieren. 
 
