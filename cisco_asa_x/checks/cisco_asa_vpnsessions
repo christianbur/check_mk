@@ -1,0 +1,99 @@
+#!/usr/bin/python
+
+def decode_oid_asa(oid):
+
+        # Example:
+        # 13.67.111.103.110.111.115.32.77.111.98.105.108.101.66551809
+        # 13.C. o.  g.  n.  o.  s.   . M. o. b.  i.  l.  e. .66551809
+        string = "LEER"
+        port = "LEER"
+
+        oid_list = oid.split('.')
+        string_array = []
+
+        oid_list.reverse() # Liste drehen, da pop() von hinten entnimmt
+
+        len_string = int(oid_list.pop())  # Serverfarm laenge speichern (im Beispiel 8)
+        for i in range(len_string):
+                # Mit unichr Ascii-Zahl in Ascii-Buchstabe wandeln und an array haengen
+                string_array.append(unichr(int(oid_list.pop())))
+
+
+        port = oid_list.pop()
+
+        # Aus dem Array ein Sting machen
+        string = "".join(string_array)
+
+        return (str(string))
+
+
+
+
+
+def inventory_cisco_asa_vpnsession(info):
+
+	counter = 0
+	for value in info[0][0]:
+		counter += saveint(value)
+
+	if counter > 0:
+		return [ (None, None) ]
+	else:
+		return []
+
+def get_perfdata_clients(crasSessionTable):
+
+        session_dict = {}
+        for line in crasSessionTable:
+                connection_typ = line[1]
+                user = decode_oid_asa(line[0])[0]
+
+                if connection_typ not in session_dict.keys():
+                         session_dict[connection_typ] = []
+                session_dict[connection_typ].append(user)
+
+
+        msg = ""
+        perfdata = []
+        counter_all = 0
+        for key in session_dict.keys():
+                counter = len(session_dict[key])
+                counter_all += counter
+                msg += "%s: %sx --" % (key, counter)
+                perfdata.append( (key, counter) )
+
+        #msg += "%s: %sx, " % ("All", counter_all)
+        return perfdata
+
+def check_cisco_asa_vpnsession(item, params, info):
+
+	crasSVCNumSessions		= info[0][0][0]
+	crasSVCCumulateSessions		= info[0][0][1]
+	crasSVCPeakConcurrentSessions	= info[0][0][2]
+	crasWebvpnNumSessions		= info[0][0][3]
+	crasWebvpnCumulateSessions	= info[0][0][4]
+	crasWebvpnPeakConcurrentSessions= info[0][0][5]
+	crasSessionTable		= info[1]	
+
+	msg = ""
+	msg += "VPN-FullClient: %s/%s/%s -- "        % (crasSVCNumSessions, crasSVCCumulateSessions, crasSVCPeakConcurrentSessions)
+	msg += "VPN-Clientless: %s/%s/%s -- " % (crasWebvpnNumSessions, crasWebvpnCumulateSessions, crasWebvpnPeakConcurrentSessions)
+	msg += "(Active-Inactive/Cumulative/Peak Concurrent)"
+
+	perfdata = [ ("_VPN-FullClient", crasSVCNumSessions), ("_VPN-Clientless", crasWebvpnNumSessions) ]
+	perfdata = perfdata + get_perfdata_clients(crasSessionTable)
+
+	return (0, msg, perfdata)	
+
+
+check_info["cisco_asa_vpnsession"] = {
+    'check_function':          check_cisco_asa_vpnsession,
+    'inventory_function':      inventory_cisco_asa_vpnsession,
+    'service_description':     'ASA VPNSessions',
+    'has_perfdata':            True,
+    'group':                   "cisco_asa_sessions",
+    'snmp_info':               [( ".1.3.6.1.4.1.9.9.392.1.3", [ '35', '36', '37', '38', '39', '40']),
+				( ".1.3.6.1.4.1.9.9.392.1.3.21.1", [OID_END, '2']),
+                                ],
+    'snmp_scan_function':      lambda oid: "Cisco Adaptive Security Appliance" in oid(".1.3.6.1.2.1.1.1.0"),
+}

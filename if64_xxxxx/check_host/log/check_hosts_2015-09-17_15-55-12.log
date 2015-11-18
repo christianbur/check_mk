@@ -1,0 +1,18 @@
+
+#--------------------------------------------------------------------------------
+
+
+Verbinde zu: ('1.1.1.10', 6557)
+Verbindungsversuch: #0
+
+
+Verbinde zu: ('1.1.1.13', 6557)
+Verbindungsversuch: #0
+
+Checked Hosts: 2855
+Date: 2015-09-17_15-55-12
+
+ERROR: Neuer Host: TEST-Switch1.domain.de...GigabitEthernet2/2                 gefunden mit  CDP, von:  test1
+ERROR: Neuer Host: TEST-Switch2.domain.de...GigabitEthernet1/2                  gefunden mit  CDP, von:  test2
+
+

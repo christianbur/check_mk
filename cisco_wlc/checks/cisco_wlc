@@ -1,0 +1,195 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+# +------------------------------------------------------------------+
+# |             ____ _               _        __  __ _  __           |
+# |            / ___| |__   ___  ___| | __   |  \/  | |/ /           |
+# |           | |   | '_ \ / _ \/ __| |/ /   | |\/| | ' /            |
+# |           | |___| | | |  __/ (__|   <    | |  | | . \            |
+# |            \____|_| |_|\___|\___|_|\_\___|_|  |_|_|\_\           |
+# |                                                                  |
+# | Copyright Mathias Kettner 2014             mk@mathias-kettner.de |
+# +------------------------------------------------------------------+
+#
+# This file is part of Check_MK.
+# The official homepage is at http://mathias-kettner.de/check_mk.
+#
+# check_mk is free software;  you can redistribute it and/or modify it
+# under the  terms of the  GNU General Public License  as published by
+# the Free Software Foundation in version 2.  check_mk is  distributed
+# in the hope that it will be useful, but WITHOUT ANY WARRANTY;  with-
+# out even the implied warranty of  MERCHANTABILITY  or  FITNESS FOR A
+# PARTICULAR PURPOSE. See the  GNU General Public License for more de-
+# ails.  You should have  received  a copy of the  GNU  General Public
+# License along with GNU Make; see the file  COPYING.  If  not,  write
+# to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
+# Boston, MA 02110-1301 USA.
+
+# States:
+# 1: OK, 2: Crit, 3: Warn
+
+
+
+
+
+
+def cisco_wlc_parse(info):
+        bsnAP_OID_dict = {"1":"bsnAPDot3MacAddress",
+          "2":"bsnAPNumOfSlots",
+          "3":"bsnAPName",
+          "4":"bsnAPLocation",
+          "5":"bsnAPMonitorOnlyMode",
+          "6":"bsnAPOperationStatus",
+          "8":"bsnAPSoftwareVersion",
+          "9":"bsnAPBootVersion",
+          "10":"bsnAPPrimaryMwarName",
+          "11":"bsnAPReset",
+          "12":"bsnAPStatsTimer",
+          "13":"bsnAPPortNumber",
+          "16":"bsnAPModel",
+          "17":"bsnAPSerialNumber",
+          "18":"bsnAPClearConfig",
+          "19":"bsnApIpAddress",
+          "20":"bsnAPMirrorMode",
+          "21":"bsnAPRemoteModeSupport",
+          "22":"bsnAPType",
+          "23":"bsnAPSecondaryMwarName",
+          "24":"bsnAPTertiaryMwarName",
+          "25":"bsnAPIsStaticIP",
+          "26":"bsnAPNetmask",
+          "27":"bsnAPGateway",
+          "28":"bsnAPStaticIPAddress",
+          "29":"bsnAPBridgingSupport",
+          "30":"bsnAPGroupVlanName",
+          "31":"bsnAPIOSVersion",
+          "32":"bsnAPCertificateType",
+          "33":"bsnAPEthernetMacAddress",
+          "37":"bsnAPAdminStatus"}
+
+        bsnAP_dict = {}
+	for node_info in info:
+		node = node_info[0]
+        	for (oid, value) in  node_info[1:]:
+          		oid_start = oid.split(".")[0]
+          		oid_end   = ".".join(oid.split(".")[1:])
+          		if node not in bsnAP_dict.keys():
+                        	bsnAP_dict[node] = {}
+          		if oid_end not in bsnAP_dict[node].keys():
+             			bsnAP_dict[node][oid_end] = {}
+          		bsnAP_dict[node][oid_end][bsnAP_OID_dict[oid_start]] = value
+
+
+        bsnAP_Name_dict = {}
+        for node in bsnAP_dict.keys():
+          for ap in bsnAP_dict[node].keys():
+             if node not in bsnAP_Name_dict.keys():
+                bsnAP_Name_dict[node] = {}
+             bsnAP_Name_dict[node][bsnAP_dict[node][ap]["bsnAPName"]] = bsnAP_dict[node][ap]
+
+
+        return bsnAP_Name_dict
+
+
+
+
+def inventory_cisco_wlc(info):
+    bsnAP_Name_dict = cisco_wlc_parse(info)
+
+    inventory = []
+    for node in bsnAP_Name_dict.keys():
+        for ap in bsnAP_Name_dict[node].keys():
+		controller = { "bsnAPPrimaryMwarName":bsnAP_Name_dict[node][ap]["bsnAPPrimaryMwarName"] }
+		
+    		inventory.append( (ap, controller ) )
+
+    inventory.append( ("_Controller_Status", None ) )
+    return inventory
+
+
+def check_cisco_wlc(item, params, info):
+    bsnAP_Name_dict = cisco_wlc_parse(info)
+
+      
+ 
+    if item == "_Controller_Status":
+	msg_status = ""
+	for node in bsnAP_Name_dict.keys():	
+    		msg_status += "WLC-Controller: %s - %sx APs, " % (node, len(bsnAP_Name_dict[node].keys())) 
+        return 0, msg_status
+
+    for node in bsnAP_Name_dict.keys():
+        for ap in bsnAP_Name_dict[node].keys(): 
+
+
+	
+	  if ap == item:
+          	mask_cidr = str(sum([bin(int(x)).count('1') for x in bsnAP_Name_dict[node][ap]["bsnAPNetmask"].split('.')]))
+          	bsnAPAdminStatus_dict = {"1":"enabled", "2":"disable"}
+		bsnAPOperationStatus_dict = {"1":"associated", "2":"disassociating", "3":"downloading"}
+
+          	msg = "IP: %s/%s, Group: %s" % ( \
+                                      			bsnAP_Name_dict[node][ap]["bsnApIpAddress"], \
+                                                      	mask_cidr, \
+                                      			#bsnAP_Name_dict[node][ap]["bsnAPModel"], \
+                                                      	bsnAP_Name_dict[node][ap]["bsnAPGroupVlanName"], \
+                                                      )
+
+		APAdminStatus     = bsnAPAdminStatus_dict[    bsnAP_Name_dict[node][ap]["bsnAPAdminStatus"]]
+	        APOperationStatus = bsnAPOperationStatus_dict[bsnAP_Name_dict[node][ap]["bsnAPOperationStatus"]]
+
+		return_state = 0
+		if bsnAP_Name_dict[node][ap]["bsnAPPrimaryMwarName"] == "":
+			msg += ", primaryController: not found (!)"
+			return_state = 1 
+		if bsnAP_Name_dict[node][ap]["bsnAPSecondaryMwarName"] == "":
+	  		msg += ", secondaryController: not found (!)" 
+			return_state = 1
+
+          
+                if node == None:
+                	msg += ''
+                else:
+			if params.get("bsnAPPrimaryMwarName") == node:
+                		msg += ' -- (Controller: %s)' % node
+			else:
+				msg += ' -- (Controller changed (!): old-Controller: %s, new-Node: %s)' % (params.get("bsnAPPrimaryMwarName"), node)
+				return_state = 1
+
+
+		if APAdminStatus == "disable":
+			return 0, "AP disabled (!)---- " + msg
+
+                if APOperationStatus == "associated":
+			if return_state > 0:
+				return return_state, "AP %s ---- %s" % (APAdminStatus, msg)
+			else:
+                		return 0, "AP %s ---- %s" % (APAdminStatus, msg)
+                if APOperationStatus == "downloading":
+                	return 1, "AP %s (!) ---- %s"  % (APOperationStatus, msg)
+                if APOperationStatus == "disassociating":
+                	return 2, "AP %s (!!) ---- %s" % (APOperationStatus, msg)
+                return 3, "Unknown state (%s) " % state
+
+    # Special treatment if this device is missing
+    if params:
+        for ap_name, ap_state in params.get("ap_name", []):
+            if item.startswith(ap_name):
+                return ap_state, "Accesspoint not found (State set to %s by rule)" % nagios_state_names[ap_state]
+
+    
+    return 2, "Accesspoint not found (!)"
+
+check_info["cisco_wlc"] = {
+    "check_function"        : check_cisco_wlc,
+    "inventory_function"    : inventory_cisco_wlc,
+    "group"                 : "cisco_wlc",
+    "service_description"   : "AP %s",
+    "node_info"             : True,
+    "snmp_scan_function"    : lambda oid: oid('.1.3.6.1.2.1.1.2.0') in [".1.3.6.1.4.1.9.1.1069",
+                                                                        ".1.3.6.1.4.1.14179.1.1.4.3",
+                                                                        ".1.3.6.1.4.1.9.1.1645",
+                                                                        ".1.3.6.1.4.1.9.1.1279"],
+    "snmp_info"             : [                               
+                    		( ".1.3.6.1.4.1.14179.2.2.1.1", [ OID_END, '' ]),
+                               ],
+}
+

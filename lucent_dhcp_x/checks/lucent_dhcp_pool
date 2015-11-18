@@ -1,0 +1,213 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+# +------------------------------------------------------------------+
+# |             ____ _               _        __  __ _  __           |
+# |            / ___| |__   ___  ___| | __   |  \/  | |/ /           |
+# |           | |   | '_ \ / _ \/ __| |/ /   | |\/| | ' /            |
+# |           | |___| | | |  __/ (__|   <    | |  | | . \            |
+# |            \____|_| |_|\___|\___|_|\_\___|_|  |_|_|\_\           |
+# |                                                                  |
+# | Copyright Mathias Kettner 2014             mk@mathias-kettner.de |
+# +------------------------------------------------------------------+
+#
+# This file is part of Check_MK.
+# The official homepage is at http://mathias-kettner.de/check_mk.
+#
+# check_mk is free software;  you can redistribute it and/or modify it
+# under the  terms of the  GNU General Public License  as published by
+# the Free Software Foundation in version 2.  check_mk is  distributed
+# in the hope that it will be useful, but WITHOUT ANY WARRANTY;  with-
+# out even the implied warranty of  MERCHANTABILITY  or  FITNESS FOR A
+# PARTICULAR PURPOSE. See the  GNU General Public License for more de-
+# ails.  You should have  received  a copy of the  GNU  General Public
+# License along with GNU Make; see the file  COPYING.  If  not,  write
+# to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
+# Boston, MA 02110-1301 USA.
+
+
+# http://www.circitor.fr/Mibs/Html/DHCP-SERVER-MIB.php
+# https://www.accumuli.com/pages/files/pdf/DHCP60RN_Issue11.pdf
+
+"""
+#dhcpServRangeOutstandingOffers 
+The number of outstanding
+DHCPOFFER messages for this range is
+reported with this value. An offer is
+outstanding if the server has sent a
+DHCPOFFER message to a client, but
+has not yet received a DHCPREQUEST
+message from the client, nor h as the
+server-specific time-out (limiting the
+time in which a client can respond to the
+offer message) for the offer message
+expired.
+
+#dhcpServRangeUnavailable
+The number of IP Addresses within this
+range that are marked by the DHCP
+server as unavailable. An address is
+marked as unavailable by the DHCP
+server when an acknowledgement of the
+address conflict detection (PING) is
+received. In addition, the DHCP server
+will mark leases as unavailable if a
+DHCPDECLINE is received from the
+DHCP client.
+"""
+
+
+dynamicDhcp_default_levels = (85.0, 95.0)
+outstanding_default_levels = 10
+unavailible_default_levels = 15
+
+def get_subnetmask(item, dhcpServRangeSubnetMask):
+	mask_list = []
+	for (subnet_ip, value) in dhcpServRangeSubnetMask:
+		subnet = ".".join(subnet_ip.split(".")[:4])
+                if item == subnet:
+			if value not in mask_list:
+				mask_list.append(value)
+
+
+	if len(mask_list) == 1:
+		mask = mask_list[0]
+		mask_cidr = str(sum([bin(int(x)).count('1') for x in mask.split('.')]))
+		return mask_cidr
+	else:
+		return "ERROR_MASK: " + str(mask_list)
+
+def convert_list2map(item, dhcpServRangeType):
+	dhcpServRangeType_desc_map = {"1":"manBootp", "2":"autoBootp", "3":"manDhcp", "4":"autoDhcp", "5":"dynamicDhcp"}
+	type_map = {}
+	for (subnet_ip, value) in dhcpServRangeType:
+		subnet = ".".join(subnet_ip.split(".")[:4])
+		if item == subnet:
+			type_map[subnet_ip] = dhcpServRangeType_desc_map[value]
+	return type_map	
+
+
+def parse_lucent_dhcp_pool(item, pool_list, type_map):
+
+	pool_map = {}
+	for (subnet_ip, value) in pool_list:
+		subnet = ".".join(subnet_ip.split(".")[:4])
+		if item == subnet:
+			key = subnet + "_" + type_map[subnet_ip]
+			if key not in pool_map.keys():
+				pool_map[key] = {"sub_pools":0, "counter":0, "subnet":subnet, "type":type_map[subnet_ip]}
+
+			pool_map[key]["sub_pools"]  += 1
+			pool_map[key]["counter"] += int(value)
+
+	return pool_map
+	
+
+def inventory_lucent_dhcp_pool(info):
+    dhcpServRangeInUse = info[0]
+
+    inventory = []
+
+    for (subnet_ip, value) in dhcpServRangeInUse:
+	subnet = ".".join(subnet_ip.split(".")[:4])
+	if (subnet, None) not in inventory:
+		inventory.append( (subnet, None) )
+
+    return inventory
+
+
+def check_lucent_dhcp_pool(item, params, info):
+   
+    dhcpServRangeType_map 		= convert_list2map(item, info[3])
+    dhcpServRangeInUse_map              = parse_lucent_dhcp_pool(item, info[0], dhcpServRangeType_map)
+    dhcpServRangeOutstandingOffers_map  = parse_lucent_dhcp_pool(item, info[1], dhcpServRangeType_map)
+    dhcpServRangeUnavailable_map        = parse_lucent_dhcp_pool(item, info[2], dhcpServRangeType_map)
+    dhcpServRangeUnused_map             = parse_lucent_dhcp_pool(item, info[4], dhcpServRangeType_map)
+    dhcpServRangeSubnetMask		= get_subnetmask(item, info[5])
+    
+ 
+    msg = []
+    if len(dhcpServRangeInUse_map) == len(dhcpServRangeOutstandingOffers_map) and \
+       len(dhcpServRangeInUse_map) == len(dhcpServRangeUnavailable_map) and \
+       len(dhcpServRangeInUse_map) == len(dhcpServRangeUnused_map) and \
+       len(dhcpServRangeInUse_map) > 0:	
+
+	state = 0
+
+    	msg += "Subnet:%11s/%s" % (item, dhcpServRangeSubnetMask)
+	msg_types = []
+	for subnet_type in sorted(dhcpServRangeInUse_map.keys()):
+		if dhcpServRangeInUse_map[subnet_type]["subnet"] == item:
+
+			dhcp_type   = dhcpServRangeInUse_map[subnet_type]["type"]
+			total       = (dhcpServRangeInUse_map[subnet_type]["counter"] + dhcpServRangeUnused_map[subnet_type]["counter"])
+			inuse       = dhcpServRangeInUse_map[subnet_type]["counter"]
+			unused	    = dhcpServRangeUnused_map[subnet_type]["counter"]
+			outstanding = dhcpServRangeOutstandingOffers_map[subnet_type]["counter"]
+			unavailible = dhcpServRangeUnavailable_map[subnet_type]["counter"]
+			#sub_pools   = dhcpServRangeInUse_map[subnet_type]["sub_pools"] 
+
+			if dhcp_type not in ["manDhcp", "dynamicDhcp"]:
+				msg_types += " -- [%s:  (!)(" % dhcp_type
+                                if state < 1: state = 1
+                        else:
+				msg_types += " -- [%s: (" % dhcp_type
+			msg_types +=  "%s"   % total
+        		msg_types += "/%s"   % inuse
+        		msg_types += "/%s"   % unused
+       			if outstanding > outstanding_default_levels:
+               			msg_types += "/%s (!)"   % outstanding
+               			if state < 1: state = 1
+       			else:
+               			msg_types += "/%s"   % outstanding
+                        if unavailible > unavailible_default_levels:
+                                msg_types += "/%s (!)"   % unavailible
+                                if state < 1: state = 1
+                        else:
+                                msg_types += "/%s"   % unavailible
+                        #msg_types += "/%s"    % sub_pools"	
+
+                        usage_procent = 100.0 * inuse / total
+
+                        if   dhcp_type == "dynamicDhcp" and usage_procent > dynamicDhcp_default_levels[0]:
+                                if state < 1: state = 1
+                                msg_types += ") %.1f%% (!) ]" % usage_procent
+                        elif dhcp_type == "dynamicDhcp" and usage_procent > dynamicDhcp_default_levels[1]:
+                                if state < 2: state = 2
+                                msg_types += ") %.1f%% (!!) ]" % usage_procent
+                        else:
+                                if state < 0: state = 0
+                                msg_types += ") %.1f%% ]" % usage_procent
+
+	msg += msg_types
+	#msg += " -- (total/inuse/unused/outstandingOffers/unavailable/sub_pools)"
+	msg += " -- (total/inUse/unUsed/outstandingOffers/unavailable)"
+
+	perfdata = []
+    elif len(dhcpServRangeInUse_map) == 0:
+	msg = "Subnet missing in SNMP-Data!"
+        state = 3
+        perfdata = []
+    else:
+	msg = "Inconsistent SNMP-Data!!!!"
+	state = 3
+	perfdata = []
+
+
+    return (state, "".join(msg), perfdata)
+
+check_info["lucent_dhcp_pool"] = {
+    "check_function"        : check_lucent_dhcp_pool,
+    "inventory_function"    : inventory_lucent_dhcp_pool,
+    "service_description"   : "DHCP: %s",
+#    "group"                 : "lucent",
+    "has_perfdata"          : True,
+    "snmp_scan_function"    : lambda oid: oid(".1.3.6.1.4.1.1751.1.48.1.1.1.1.1.*") != None,
+    "snmp_info"             : [( ".1.3.6.1.4.1.1751.1.48.1.1.1.1.7.2.1",  [ OID_END, "5"]), # dhcpServRangeInUse
+			       ( ".1.3.6.1.4.1.1751.1.48.1.1.1.1.7.2.1",  [ OID_END, "6"]), # dhcpServRangeOutstandingOffers
+			       ( ".1.3.6.1.4.1.1751.1.48.1.1.1.1.7.2.1",  [ OID_END, "7"]), # dhcpServRangeUnavailable
+			       ( ".1.3.6.1.4.1.1751.1.48.1.1.1.1.7.2.1",  [ OID_END, "8"]), # dhcpServRangeType
+			       ( ".1.3.6.1.4.1.1751.1.48.1.1.1.1.7.2.1",  [ OID_END, "9"]), # dhcpServRangeUnused
+			       ( ".1.3.6.1.4.1.1751.1.48.1.1.1.1.7.2.1",  [ OID_END, "2"]), # dhcpServRangeSubnetMask
+			      ],
+                             
+}

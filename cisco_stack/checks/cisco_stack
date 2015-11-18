@@ -1,0 +1,99 @@
+#!/usr/bin/python
+
+def inventory_cisco_stack(info):
+    	cswSwitch = info[0]
+
+    	cswSwitchNumCurrent_list = []
+
+    	if len(cswSwitch) > 1:
+        	for index, cswSwitchNumCurrent, cswSwitchRole, cswSwitchState in cswSwitch:	
+        		cswSwitchNumCurrent_list.append(cswSwitchNumCurrent)
+    
+		
+	if len(cswSwitchNumCurrent_list) > 0:
+		return [(None, cswSwitchNumCurrent_list)]
+	else:
+		return []
+
+def check_cisco_stack(item, params, info):
+	cswSwitch		= info[0]
+	cswRingRedundant	= info[1]
+
+	state_stackring = 3
+	state_stackwise = 3
+	msg_stackring = ""
+	msg_stackwise = ""
+
+	#Stackring
+	if len(cswSwitch) == 0:
+		state_stackring = 0
+		msg_stackring = "NOT FOUND!"
+    	elif len(cswSwitch) == 1:
+		state_stackring = 0
+		msg_stackring = "Only one switch in stack"
+	else:
+    		for swnum, swring in cswRingRedundant:
+        		if swring == "1":
+				state_stackring = 0
+				msg_stackring = "is redundant"
+        		else:
+				state_stackring = 2
+				msg_stackring = "is NOT (!) redundant"
+
+	
+	#Stackwise
+	cisco_stw_role = ('', 'master', 'member', 'notMember', 'standby')
+	cisco_stw_states = ('', 'waiting', 'progressing', 'added', 'ready', 'sdmMismatch', 'verMismatch', 'featureMismatch','newMasterInit','provisioned','invalid', 'removed')
+	
+        #Stackring
+	cswSwitchNumCurrent_list = []
+        if len(cswSwitch) == 0:
+                state_stackring = 0
+                msg_stackring = "NOT FOUND!"
+	elif len(cswSwitch) > 0:
+		for index, cswSwitchNumCurrent, cswSwitchRole, cswSwitchState in cswSwitch:
+			cswSwitchNumCurrent_list.append(cswSwitchNumCurrent)
+            		text = cisco_stw_role[saveint(cswSwitchRole)]+ ": " + cisco_stw_states[saveint(cswSwitchState)] + ", "
+            		if cisco_stw_states[saveint(cswSwitchState)] == "ready":
+				if state_stackwise != 1 or state_stackwise != 2: state_stackwise = 0
+			 	msg_stackwise   += text
+            		elif cisco_stw_states[saveint(cswSwitchState)] == "waiting":
+                        	if state_stackwise != 2: state_stackwise = 1
+                         	msg_stackwise   += text
+            		elif cisco_stw_states[saveint(cswSwitchState)] == "progressing":
+                	 	if state_stackwise != 2: state_stackwise = 1
+                         	msg_stackwise   += text
+            		elif cisco_stw_states[saveint(cswSwitchState)] == "added":
+                         	if state_stackwise != 2: state_stackwise = 1
+                         	msg_stackwise   += text
+            		elif cisco_stw_states[saveint(cswSwitchState)] == "newMasterInit":
+                         	if state_stackwise != 2: state_stackwise = 1
+                         	msg_stackwise   += text
+            		else:
+                        	state_stackwise = 2
+                         	msg_stackwise   += text
+
+
+		if cswSwitchNumCurrent_list != params:
+			if state_stackwise <= 1: state_stackwise = 1
+			msg_stackwise += "Switch in Stack changed (!) (old: %s, new: %s)" % (params, cswSwitchNumCurrent_list)
+    
+	msg = "Stackring: %s --- Stackwise: %s" % (msg_stackring, msg_stackwise)
+	state = max(state_stackring, state_stackwise)
+    	return (state, msg)
+
+
+check_info["cisco_stack"] = {
+    'check_function':          check_cisco_stack,
+    'inventory_function':      inventory_cisco_stack,
+    'service_description':     'Stack',
+    'snmp_info':               [('.1.3.6.1.4.1.9.9.500.1.2.1.1'	  ,[OID_END, 
+								    '1',  	# cswSwitchNumCurrent
+								    '3',	# cswSwitchRole
+								    '6',        # cswSwitchState
+				]),
+				('.1.3.6.1.4.1.9.9.500.1.1.3',[OID_END,''])     # cswRingRedundant
+			       ],
+     'snmp_scan_function':      lambda oid: oid(".1.3.6.1.4.1.9.9.500.1.2.1.1.1.*") != None
+
+}
