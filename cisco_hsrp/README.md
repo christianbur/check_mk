@@ -1,5 +1,6 @@
 **Beschreibung:**  
-Ich habe den cisco_hsrp Check etwas angepasst (siehe Screenshorts)
+Ich habe den cisco_hsrp Check etwas angepasst (siehe Screenshorts) um sie im produktiven Betieb besser benutzen zu können.
+So werden z.B. auch falsch konfigurierte HSRP-Interface gemeldet. 
 
 **Installation:**  
 Manuell:  
