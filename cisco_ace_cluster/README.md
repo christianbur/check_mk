@@ -2,7 +2,7 @@
 Der cisco_ace_cluster Check überwacht die "fault tolerance groups" eines Cisco ACE Loadbalancers (ACE 4710).
 Sobald sich der Zustand ändert, meldet der Check einen Alarm.
 
-***INFO:***
+***INFO:***  
 Auf einem Cisco ACE Loadbalancer können unterschiedliche Contexte angelegt werden.
 Die Contexte können auf zwei unterschiedliche Arten abgefragt werden:
   1. Über die IP des Admin-Contextes
@@ -13,7 +13,7 @@ Die Contexte können auf zwei unterschiedliche Arten abgefragt werden:
       - Der Check cisco_ace_cluster funktioniert nur im Admin-Context.
 
 
-**Installation:**  
+**Installation:**    
 Manuell:  
 CMK-Server: den Check aus "checks/cisco_ace_cluster" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren  
 
