@@ -1,6 +1,6 @@
 **Beschreibung:**  
-Der cisco_asa_connections und cisco_asa_vpnsessions Check dient zur Überwachung von Cisco ASA Connections und gibt die Werte als PerfData aus. 
-Der cisco_asa_vpnsessions ist speziell für die Überwachung von Cisco AnyConnect (VPN)
+Der cisco_asa_connections und cisco_asa_vpnsessions Check dient zur Ãœberwachung von Cisco ASA Connections und gibt die Werte als PerfData aus. 
+Der cisco_asa_vpnsessions ist speziell fÃ¼r die Ãœberwachung von Cisco AnyConnect (VPN) und gibt die akutell angemeldeten User als PerfDaten aus. 
 
 **Installation:**  
 Manuell:  
