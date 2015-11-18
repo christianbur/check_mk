@@ -1,6 +1,14 @@
 **Beschreibung:**  
-Der cisco_wlc Check dient zur �berwachung von Wireless LAN Controllern und ist einer Erweiterung des CMK-Checks.
+Der cisco_wlc Check dient zur Überwachung von Wireless LAN Controllern und ist einer Erweiterung des CMK-Checks.
 Ich verwende den Check im Cluster, da wir zwei Controller verwenden. 
+
+Der Check gibt folgende Informationen aus.
+  - IP
+  - AP enabled/disabled
+  - AP-Group
+  - WL-Controller
+      - überprüft den primary und secondary Controller und gibt eine Warnung bei einer Änderung
+  - Warnung wenn AP nicht mehr gefunden wird
 
 **Installation:**  
 Manuell:  
