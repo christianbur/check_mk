@@ -118,7 +118,7 @@ check_info["cisco_rf"] = {
                                     1.8, # cRFStatusLastSwactReasonCode
                                     2.11, # cRFCfgAdminAction
                             ]),
-    'snmp_scan_function'  : lambda oid: "cisco" in oid(".1.3.6.1.2.1.1.1.0").lower(),
+    'snmp_scan_function'  : lambda oid: "cisco" in oid(".1.3.6.1.2.1.1.1.0").lower() and oid(".1.3.6.1.4.1.9.9.176.*"),
     'includes'            : ['cisco_sensor_item.include'],
 }
 
