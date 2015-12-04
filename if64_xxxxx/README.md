@@ -90,11 +90,11 @@ switch_interfaces
 			- Vlan    
 			- Voice Vlan    
 			- Erlaubt Vlans pro Trunk (1-4096)    
-			- Port Typ (Access, Trunk, Port-Channel)    
+			- Port Typ (Access, Trunk, Port-Channel)  
 
 			Mit diesem View kann man sich z.B. alle Ports (aller Switche) in Vlan 44 anzeigen lassen oder alle Ports mit halfDuplex.   
 
-switch_mac    
+switch_mac  
 	  Lierfert Infos zu den MAC-Adressen in zwei Tabellen    
 			- Interface-Index    
 			- Interface-Descrition    
@@ -103,7 +103,7 @@ switch_mac
 			- MAC-Adresse    
 					- Mit Hersteller und eigenen Kommentaren (z.B. Drucker)    
 
-switch_mac_count      
+switch_mac_count  
 					- Hersteller (mit den ersten 6 Zeichen der MAC-Adresse)   
 					- Anzahl der gefunden MAC-Adressen an Access-Ports auf dem Switch.     
 
