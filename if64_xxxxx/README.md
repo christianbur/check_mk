@@ -70,40 +70,42 @@ switch_ipaddr
 
 switch_ipRoute, switch_ipCidrRoute, (geht noch nicht: switch_inetCidrRouteTable)     
   Liefert die Routing Tabelle des Switches in einer Tabelle    
-			- IP-Netz
-			- Mask (CIDR)
-			- Mask
-			- Interface-Index
-			- Protokoll (local, rip, bgp, ospf, ...)
-			- Next Hop
-			- Type
+			- IP-Netz    
+			- Mask (CIDR)    
+			- Mask    
+			- Interface-Index     
+			- Protokoll (local, rip, bgp, ospf, ...)    
+			- Next Hop    
+			- Type    
 
 switch_interfaces    
-		Liefert Infos zu den Interfacen  in einer Tabelle   
-			- Interface-Index
-			- Interface-Descrition
-			- Interface-Alias
-			- Speed
-			- Oper Status
-			- Duplex Status
-			- CDP/LLDP Nachbar
-			- Vlan
-			- Voice Vlan
-			- Erlaubt Vlans pro Trunk (1-4096)
-			- Port Typ (Access, Trunk, Port-Channel)
+		Liefert Infos zu den Interfacen  in einer Tabelle      
+			- Interface-Index    
+			- Interface-Descrition    
+			- Interface-Alias      
+			- Speed    
+			- Oper Status    
+			- Duplex Status    
+			- CDP/LLDP Nachbar    
+			- Vlan    
+			- Voice Vlan    
+			- Erlaubt Vlans pro Trunk (1-4096)    
+			- Port Typ (Access, Trunk, Port-Channel)    
+
+			Mit diesem View kann man sich z.B. alle Ports (aller Switche) in Vlan 44 anzeigen lassen oder alle Ports mit halfDuplex.   
 
 switch_mac    
 	  Lierfert Infos zu den MAC-Adressen in zwei Tabellen    
-			- Interface-Index
-			- Interface-Descrition
-			- Port Typ (Access, Trunk, Port-Channel)
-			- Vlan (nur Cisco)
-			- MAC-Adresse
-					- Mit Hersteller und eigenen Kommentaren (z.B. Drucker)
+			- Interface-Index    
+			- Interface-Descrition    
+			- Port Typ (Access, Trunk, Port-Channel)    
+			- Vlan (nur Cisco)    
+			- MAC-Adresse    
+					- Mit Hersteller und eigenen Kommentaren (z.B. Drucker)    
 
-		switch_mac_count    
-					- Hersteller (mit den ersten 6 Zeichen der MAC-Adresse)
-					- Anzahl der gefunden MAC-Adressen an Access-Ports auf dem Switch.
+		switch_mac_count      
+					- Hersteller (mit den ersten 6 Zeichen der MAC-Adresse)   
+					- Anzahl der gefunden MAC-Adressen an Access-Ports auf dem Switch.     
 
 		Info:      
 				für das MAC-Adrssen Inventory müsste ich mein eigenes "snmp_inline" bauen, da die CMK die MAC-Adressen von Cisco-Geräte nicht abrufen kann.
