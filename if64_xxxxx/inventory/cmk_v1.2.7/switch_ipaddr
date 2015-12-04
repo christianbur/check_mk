@@ -28,34 +28,36 @@
 # Author: Christian Burmeister
 
 
-def switch_sn_inv(info, params):
-        serialnum = ""
-        if len(info[0]) >= 1:
-                if info[0][0][0] != "":
-                        serialnum = info[0][0][0]
-                else:
-                        serialnum = info[0][0][1]
-        else:
-                serialnum = "NOTFOUND"
+def inv_switch_ipaddr(info, params):
 
-		modelname = ""
-        if len(info[1]) >= 1:
-                if info[1][0][0] != "":
-                        modelname = info[1][0][0]
-                else:
-                        modelname = info[1][0][1]
-        else:
-                modelname = "NOTFOUND"
+    port_info, ipAdEntAddr, ipAdEntNetMask = info
+   
+    ipAddress_dict = get_ip_address_raw(ipAdEntAddr, ipAdEntNetMask)
+
+    addresses = inv_tree("networking.switch_addresses:")
+    for if_index, if_descr, if_alias, if_type  in port_info:
+	    if if_index in ipAddress_dict.keys():
+		ipaddr = "; ".join(ipAddress_dict[if_index]) 
+    		addresses.append({
+			"index"         : if_index, 	   
+			"description"   : if_descr,
+			"alias"         : if_alias,
+			"address"       : ipaddr, 
+    		})
 
 
-	node = inv_tree("hardware.system.")
-	node["PhysicalSerialNum"] = serialnum
-	node["PhysicalModelName"] = modelname
-
-inv_info['switch_sn'] = {
-    "inv_function" : switch_sn_inv,
-    'snmp_info':               [(".1.3.6.1.2.1.47.1.1.1.1.11",  ["1", "1001"]), # entPhysicalSerialNum
-                                (".1.3.6.1.2.1.47.1.1.1.1.13",  ["1", "1001"]), # entPhysicalModelName
+inv_info['switch_ipaddr'] = {
+    "inv_function" : inv_switch_ipaddr,
+    'includes':  [ 'if_network.include' ],
+    'snmp_info': [
+        ( ".1.3.6.1.2.1", [
+           "2.2.1.1",            # ifIndex
+           "2.2.1.2",            # ifDescr
+           "31.1.1.1.18",        # ifAlias
+           "2.2.1.3",            # ifType
+        ]),
+	oid_ipAdEntAddr,
+	oid_ipAdEntNetMask,
     ],
-    'snmp_scan_function':      lambda oid: oid(".1.3.6.1.2.1.1.1.0") != None,
+    'snmp_scan_function': lambda oid: int(oid(".1.3.6.1.2.1.2.1.0")) >= 2,
 }

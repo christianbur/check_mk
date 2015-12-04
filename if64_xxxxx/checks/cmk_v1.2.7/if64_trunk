@@ -24,38 +24,29 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
+# Author: Christian Burmeister
 
-#------------------------------------------------------------------------------
-#check_mk -nv  --checks if64_trunk  SW671010_20 --debug
-#Test Inventory: check_mk --checks if64_trunk -I asw0060
-#Test Check: check_mk --checks if64_trunk  asw0060
-
-
-neighbor_search = ["cisco ", "ProCurve "]
+neighbor_search = ["cisco ", "ProCurve ", "HP ", "Switch", "N7K", "N5K"]
 neighbor_ignore = ["IP Phone", " ATA "]
 
 def get_trunks(info):
 
-    if_all = info[0]
-    vlanTrunkPortDynamicStatus  = info[1]
-    dot3adAggPortSelectedAggID  = info[2]
-    dot1qVlanStaticEntry        = info[3]
-    cdpCacheDeviceId            = info[5]
-    lldpRemSysName              = info[4]
+    if_all, vlanTrunkPortDynamicStatus, dot3adAggPortSelectedAggID, dot1qVlanCurrentEntry, \
+    lldpRemSysName, lldpLocPortDesc, cdpCacheDeviceId, dot3StatsDuplexStatus = info
+  	
+    index_portchannel_cisco = get_index_portchannel_cisco(dot3adAggPortSelectedAggID)
+    
+    index_trunk_cisco = get_index_trunk_cisco(vlanTrunkPortDynamicStatus)
+    index_trunk_hp    = get_index_trunk_hp(dot1qVlanCurrentEntry)
 
 
-    port_channel = get_port_channel(dot3adAggPortSelectedAggID)
-
-    trunks_cisco = get_trunk_cisco(vlanTrunkPortDynamicStatus)
-    trunks_hp    = get_trunk_hp(dot1qVlanStaticEntry)
-
-
-    (neighbor_lldp, neighbor_cdp) = get_neighbor_generic_all(lldpRemSysName, cdpCacheDeviceId, neighbor_ignore, neighbor_search)
+    info_neighbor = [if_all,lldpRemSysName, lldpLocPortDesc, cdpCacheDeviceId, neighbor_ignore, neighbor_search]
+    neighbor_lldp = get_neighbor_generic("LLDP", info_neighbor)
+    neighbor_cdp  = get_neighbor_generic("CDP",  info_neighbor)
 
 
     index_neighbor = neighbor_lldp.keys() + neighbor_cdp.keys()
 
- 
     # Ignore LLDP and CDP if interfaceType "propVirtual(53)"
     if len(index_neighbor) > 0:
         ignore_ifType = ['53']
@@ -70,50 +61,41 @@ def get_trunks(info):
 
         index_neighbor = new_index_neighbor
 
-   
     # return Trunk Interfaces (hp or cisco) 
     if_trunks = [] 
     for interface in if_all:
         if interface == None:
                 continue
-        elif interface[0] in trunks_cisco + trunks_hp:
+        elif interface[0] in index_trunk_cisco + index_trunk_hp:
                 interface[1] =  "If_Trunk " + interface[1]
                 if_trunks.append([None] + interface) 
-        elif interface[0] in port_channel:
+        elif interface[0] in index_portchannel_cisco:
                 interface[1] =  "If_Po " + interface[1]
                 if_trunks.append([None] + interface)
         elif interface[0] in index_neighbor:
                 interface[1] =  "If_CDP/LLDP " + interface[1]
                 if_trunks.append([None] + interface)
- 
+
     return if_trunks
-
-
-def replace_if64_trunk_ifdescr(ifDescr):
-        return ifDescr.replace("If_Trunk ","").replace("If_CDP/LLDP ","").replace("If_Po ","").strip()
 
 
 def inventory_if64_trunk(info):
 
-    cdpCacheDeviceId            = info[5]
-    lldpRemSysName              = info[4]
+    if_all, vlanTrunkPortDynamicStatus, dot3adAggPortSelectedAggID, dot1qVlanCurrentEntry, \
+    lldpRemSysName, lldpLocPortDesc, cdpCacheDeviceId, dot3StatsDuplexStatus = info
 
     if_trunk = get_trunks(info)
 
-    return inventory_if64_params_neighbor(if_trunk, lldpRemSysName, cdpCacheDeviceId, neighbor_ignore, neighbor_search)
+    info_neighbor = [if_all,lldpRemSysName, lldpLocPortDesc, cdpCacheDeviceId, neighbor_ignore, neighbor_search]
+    return inventory_if64_params_neighbor(if_trunk, info_neighbor)
 
 
 def check_if64_trunk(item, params, info):
     info_if64_check = []
     item = replace_if64_trunk_ifdescr(item)
 
-    if_all = info[0]
-    vlanTrunkPortDynamicStatus  = info[1]
-    dot3adAggPortSelectedAggID  = info[2]
-    dot1qVlanStaticEntry        = info[3]
-    cdpCacheDeviceId            = info[5]
-    lldpRemSysName              = info[4]
-    dot3StatsDuplexStatus       = info[6]
+    if_all, vlanTrunkPortDynamicStatus, dot3adAggPortSelectedAggID, dot1qVlanCurrentEntry, \
+    lldpRemSysName, lldpLocPortDesc, cdpCacheDeviceId, dot3StatsDuplexStatus = info
 
 
     for interface in if_all:
@@ -124,7 +106,8 @@ def check_if64_trunk(item, params, info):
         info_if64_check.append([None] + interface)
 
         if interface[1] == item:
-                return check_if64_neighbor_interface(interface, lldpRemSysName, cdpCacheDeviceId, neighbor_ignore, neighbor_search, params, item, dot3StatsDuplexStatus)
+		info_neighbor = [if_all,lldpRemSysName, lldpLocPortDesc, cdpCacheDeviceId, neighbor_ignore, neighbor_search]
+                return check_if64_neighbor_interface(interface, info_neighbor, params, item, dot3StatsDuplexStatus)
 
     return check_if64_original(item, params, info_if64_check)
 
@@ -142,14 +125,15 @@ check_info["if64_trunk"] = {
     'inventory_function':      inventory_if64_trunk,
     'service_description':     "%s",
     'has_perfdata':            True,
-    'includes':                [ 'if.include', 'cdp_lldp_dulpex.include' ],
+    'includes':                [ 'if.include', 'if_network.include' ],
     'snmp_info':               [( ".1.3.6.1.2.1", if64_snmp_end_oids),
-                                oid_vlanTrunkPortDynamicStatus, 
-                                oid_dot3adAggPortSelectedAggID, 
-                                oid_dot1qVlanStaticEntry,       
-                                oid_lldpRemSysName,             
-                                oid_cdpCacheDeviceId,           
-                                oid_dot3StatsDuplexStatus,      
+				oid_vlanTrunkPortDynamicStatus, 
+				oid_dot3adAggPortSelectedAggID, 
+				oid_dot1qVlanCurrentEntry,       
+				oid_lldpRemSysName,
+				oid_lldpLocPortDesc,            
+				oid_cdpCacheDeviceId,           
+				oid_dot3StatsDuplexStatus,      
     ],
     'snmp_scan_function'        : if64_trunk_scan_function,
     'group'                     : 'if',

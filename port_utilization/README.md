@@ -10,7 +10,7 @@ Der Check port_utilization zeigt die folgenden Werte an:
 **Installation:**  
 Manuell:  
 CMK-Server: den Check aus "checks/port_utilization" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren  
-
+CMK-Server: den Check aus "if64_xxxxx/checks/cmk_v1.2.7/if_network.include" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren 
 
 
 **Screenshort:**
