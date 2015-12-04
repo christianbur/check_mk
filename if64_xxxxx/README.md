@@ -52,24 +52,24 @@ Durch dieses Host Discovery werden in unserm Netzwerk nun (fast) alle neuen Swit
 Die Information über neue Switche wird in einer Text-Datei protkolliert, diese kann mit mk_logwatch überwacht werden.
 Ich befürchte aber, dass dieses Skript für jede Umgebung angepasst werden muss.
 
-***HW/SW-Inventory***:
+***HW/SW-Inventory***:   
 Mit den Checks lassen sich die Switch bereits gut überwachen, manchmal möchte man aber noch mehr Infos zu dem Switchen haben.
 Seit der CMK-Version 1.2.7 gibt es auch ein HW/SW-Inventory für SNMP, und damit hab ich auch etwas gespielt
 
-switch_sn:
-	Liefert folgende Werte:
-			- Serinnummer
-			- Modelname
+switch_sn:   
+	Liefert folgende Werte:    
+			- Serinnummer    
+			- Modelname    
 
-switch_ipaddr
-   Liefert alle IP-Adressen des Switches in einer Tabelle
-		- Interface-Index
-		- Interface-Descrition
-		- Interface-Alias
-		- Interface-Adress
+switch_ipaddr    
+   Liefert alle IP-Adressen des Switches in einer Tabelle    
+		- Interface-Index    
+		- Interface-Descrition   
+		- Interface-Alias   
+		- Interface-Adress    
 
-switch_ipRoute, switch_ipCidrRoute, (geht noch nicht: switch_inetCidrRouteTable)
-  Liefert die Routing Tabelle des Switches in einer Tabelle
+switch_ipRoute, switch_ipCidrRoute, (geht noch nicht: switch_inetCidrRouteTable)     
+  Liefert die Routing Tabelle des Switches in einer Tabelle    
 			- IP-Netz
 			- Mask (CIDR)
 			- Mask
@@ -78,8 +78,8 @@ switch_ipRoute, switch_ipCidrRoute, (geht noch nicht: switch_inetCidrRouteTable)
 			- Next Hop
 			- Type
 
-switch_interfaces
-		Liefert Infos zu den Interfacen  in einer Tabelle
+switch_interfaces    
+		Liefert Infos zu den Interfacen  in einer Tabelle   
 			- Interface-Index
 			- Interface-Descrition
 			- Interface-Alias
@@ -92,8 +92,8 @@ switch_interfaces
 			- Erlaubt Vlans pro Trunk (1-4096)
 			- Port Typ (Access, Trunk, Port-Channel)
 
-switch_mac
-	  Lierfert Infos zu den MAC-Adressen in zwei Tabellen
+switch_mac    
+	  Lierfert Infos zu den MAC-Adressen in zwei Tabellen    
 			- Interface-Index
 			- Interface-Descrition
 			- Port Typ (Access, Trunk, Port-Channel)
@@ -101,22 +101,22 @@ switch_mac
 			- MAC-Adresse
 					- Mit Hersteller und eigenen Kommentaren (z.B. Drucker)
 
-		switch_mac_count
+		switch_mac_count    
 					- Hersteller (mit den ersten 6 Zeichen der MAC-Adresse)
 					- Anzahl der gefunden MAC-Adressen an Access-Ports auf dem Switch.
 
-		Info:  
+		Info:      
 				für das MAC-Adrssen Inventory müsste ich mein eigenes "snmp_inline" bauen, da die CMK die MAC-Adressen von Cisco-Geräte nicht abrufen kann.
 				Dies kann ggf. auch für ander Dinge hilfreich sein, die mit der normalen SNMP-CMK-API nicht möglich sind.
 				(CMK Inline SNMP muss aber glaube ich aktivert sein, da sonst "inport netsnmp" nicht ausgeführt wird.)
 
 
-Suchen.
+Suchen:     
     Alle diese Infos sind durchsuchbar.
 		Im linken Kasten "Views" unter "Inventory"
 
 
-**Installation:**   
+**Installation:**      
 Checks:   
 CMK-Server: den Check aus "checks/CMK-VERSION/if64_neighbor" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren   
 CMK-Server: den Check aus "checks/CMK-VERSION/if64_trunk" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren  
@@ -129,24 +129,24 @@ CMK-Server: den Check aus "inventory/cmk_v1.2.7/*" nach "/omd/sites/SITE/local/s
 CMK-Server: den Check aus "web/plugins/views/switch_x.py" nach "/omd/sites/SITE/local/share/check_mk/web/plugins/views kopieren  
 
 
-***Info:***
-Da die Checks if64_trunk und if64_neighbor ersetzen muss der if64 deaktiviert werden.
-Ich habe das über Tags wie folgt gelöst:
-	Tag erstellen:
-		Name : if64-Check
+***Info:***    
+Da die Checks if64_trunk und if64_neighbor ersetzen muss der if64 deaktiviert werden.    
+Ich habe das über Tags wie folgt gelöst:    
+	Tag erstellen:    
+		Name : if64-Check    
 			- if64_trunk -> Trunks und Portchannel (if64_trunk)
 			- if64_neighbor -> Alle Interfaces mit CDP und LLDP (if64_neighbor)
 			- if64_original	-> Original if64
 			- LEER -> Deaktiviert
-	Host & Service Parameters -> Disabled checks
-		"if64-Check" isnot 	"Trunks und Portchannel (if64_trunk)"
-			Check if64_trunk deaktivieren
-		"if64-Check" isnot 	"Alle Interfaces mit CDP und LLDP (if64_neighbor)"
-			Check if64_neighbor deaktivieren
-		"if64-Check" isnot 	"Original if64"
-			Check if64 deaktivieren
+	Host & Service Parameters -> Disabled checks     
+		"if64-Check" isnot 	"Trunks und Portchannel (if64_trunk)"   
+			Check if64_trunk deaktivieren    
+		"if64-Check" isnot 	"Alle Interfaces mit CDP und LLDP (if64_neighbor)"    
+			Check if64_neighbor deaktivieren   
+		"if64-Check" isnot 	"Original if64"   
+			Check if64 deaktivieren   
 
-Mit diesen Tags kann man dann pro Host/Folder einstellen welchen if64 Check man verwenden will.
+Mit diesen Tags kann man dann pro Host/Folder einstellen welchen if64 Check man verwenden will.   
 
 
 
