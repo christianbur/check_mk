@@ -5,7 +5,7 @@ Die Hosts werden jeweils pro CMK-Folder ausgegeben mit IP-Adresse, Hostname und 
 
 ***Beispiel:***  
 
-
+```python
 #/dummy
 127.0.0.1            http_test                            		#http_test
 80.69.98.110         dns_test                                 #dns_test
@@ -18,3 +18,4 @@ Die Hosts werden jeweils pro CMK-Folder ausgegeben mit IP-Adresse, Hostname und 
 
 #/linux_server
 127.0.0.1            tes                                     #test
+```
