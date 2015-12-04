@@ -103,11 +103,11 @@ switch_mac
 			- MAC-Adresse    
 					- Mit Hersteller und eigenen Kommentaren (z.B. Drucker)    
 
-		switch_mac_count      
+switch_mac_count      
 					- Hersteller (mit den ersten 6 Zeichen der MAC-Adresse)   
 					- Anzahl der gefunden MAC-Adressen an Access-Ports auf dem Switch.     
 
-		Info:      
+Info:      
 				für das MAC-Adrssen Inventory müsste ich mein eigenes "snmp_inline" bauen, da die CMK die MAC-Adressen von Cisco-Geräte nicht abrufen kann.
 				Dies kann ggf. auch für ander Dinge hilfreich sein, die mit der normalen SNMP-CMK-API nicht möglich sind.
 				(CMK Inline SNMP muss aber glaube ich aktivert sein, da sonst "inport netsnmp" nicht ausgeführt wird.)
