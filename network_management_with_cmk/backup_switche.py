@@ -13,22 +13,22 @@ import os
 def recv_timeout(the_socket,timeout=2):
     #make socket non blocking
     the_socket.setblocking(0)
-     
+
     #total data partwise in an array
     total_data=[];
     data='';
-     
+
     #beginning time
     begin=time.time()
     while 1:
         #if you got some data, then break after timeout
         if total_data and time.time()-begin > timeout:
             break
-         
+
         #if you got no data at all, wait a little longer, twice the timeout
         elif time.time()-begin > timeout*2:
             break
-         
+
         #recv something
         try:
             data = the_socket.recv(8192)
@@ -41,7 +41,7 @@ def recv_timeout(the_socket,timeout=2):
                 time.sleep(0.1)
         except:
             pass
-     
+
     #join all parts to make final string
     return ''.join(total_data)
 
@@ -70,7 +70,7 @@ def list_find(item, list):
 
 
 
-                
+
 
 def get_backuphosts(lql_answer_python):
 
@@ -107,9 +107,9 @@ def get_backuphosts(lql_answer_python):
                 if list_find(plugin_output, snmpinfo_all) and not host_address.startswith("10.127.") and not host_address in ips_ignore.keys():
                         backuphosts.append(host)
                 else:
-			
+
                         backuphosts_ignored.append(host)
-	
+
 	# Listen sortieren
 	backuphosts.sort(key=lambda tup: tup[0])
 	backuphosts_ignored.sort(key=lambda tup: tup[0])
@@ -139,19 +139,19 @@ def get_config_cisco_hp(host, log_file):
 
 
 	ips_dsl     = ["192.168.121.1", "192.168.121.2"]
-	
+
 	if list_startswith(host_address, ips_dsl  ):
 		device.logging("--- Anmeldedaten: DSL-Switche")
-		device.connect(tacacs_username, tacacs_tpasswort, 'dakremote')
+		device.connect(tacacs_username, tacacs_tpasswort, 'test')
 	else:
 		device.logging("--- Anmeldedaten: TACACS only")
 		device.connect(tacacs_username, tacacs_tpasswort)
-        
-        
+
+
         config = device.command("show running-config")
 
         write_memory_config(device, host)
-        
+
         device.disconnect()
 
         return config
@@ -212,7 +212,7 @@ def write_memory_config(device, host):
 
 #def get_config_f5(host, log_file, path):
 #def get_config_wlc(host, log_file, date):
- 
+
 
 
 # Speichert eine Textdatei ab
@@ -223,7 +223,7 @@ def save_output(address, config, extension, path, date):
         fh = open(config_file_path,"w")
         fh.writelines(config)
         fh.close()
-	
+
 	return config_file_path
 
 def logging(log_file, msg):
@@ -233,7 +233,7 @@ def logging(log_file, msg):
 def backup_devices(backuphosts, backuphosts_ignored, server, livestatus_log, snmpinfo_cisco_hp, snmpinfo_f5, snmpinfo_wlc):
         base_path = "/daten/backup/backup_config/"
 	lastbackup_path = base_path + "lastbackup/"
-  
+
         date = time.strftime("%Y-%m-%d")
         date_time = time.strftime("%Y-%m-%d_%H-%M-%S")
         path = base_path + date + "_" + server[0] + "/"
@@ -253,14 +253,14 @@ def backup_devices(backuphosts, backuphosts_ignored, server, livestatus_log, snm
         log_file_symlink = lastbackup_path + "DEVICELOG_" + server[0] + ".log"
         if os.path.islink(log_file_symlink):
         	os.unlink(log_file_symlink)
-        os.symlink(log_file_path.replace(base_path,"../"), log_file_symlink)	
+        os.symlink(log_file_path.replace(base_path,"../"), log_file_symlink)
 
 
         for host in backuphosts:
                	(host_name, host_alias, host_address, plugin_output, host_filename) = host
 
               	try:
-			logging(log_file, "\n\n")	 
+			logging(log_file, "\n\n")
 			config  =   "# CheckMK-host_name: "     + str(host_name)
 			config += "\n# CheckMK-host_alias: "    + str(host_alias)
 			config += "\n# CheckMK-host_address: " 	+ str(host_address)
@@ -276,8 +276,8 @@ def backup_devices(backuphosts, backuphosts_ignored, server, livestatus_log, snm
 		#	elif list_find(plugin_output, snmpinfo_wlc):
 		#		device_config = get_config_wlc(host, log_file, date)
 			else:
-				raise Exception("ERROR: Keine 'get_config()' Methode fuer Host gefunden!")			
-			
+				raise Exception("ERROR: Keine 'get_config()' Methode fuer Host gefunden!")
+
 			if len(device_config) == 0:
                         	logging(log_file, "ERROR: Device config ist empty")
                       	config += device_config
@@ -285,16 +285,16 @@ def backup_devices(backuphosts, backuphosts_ignored, server, livestatus_log, snm
 
 			# Cofig in Datei schreiben
                         config_file_path = save_output(host_address, config, "config", path, date_time)
-			logging(log_file,"--- Backupfile: " + config_file_path)	
+			logging(log_file,"--- Backupfile: " + config_file_path)
 
 			# Symlink anlegen
 			lastbackup_config_link = lastbackup_path + host_address + ".config"
 			if os.path.islink(lastbackup_config_link):
-				os.unlink(lastbackup_config_link) 
+				os.unlink(lastbackup_config_link)
 			os.symlink(config_file_path.replace(base_path,"../"), lastbackup_config_link)
 
               	except Exception, e:
-                     	logging(log_file,"ERROR: %s" % str(e) ) 
+                     	logging(log_file,"ERROR: %s" % str(e) )
                         save_output(host_address, str(e), "error", path, date_time)
 
         # ------------------------------------------------------------
@@ -317,7 +317,7 @@ def get_hostByLivestatus():
     	#s.connect(socket_path)
 
     	all_server = [('1.1.1.1', 6557),('2.2.2.2', 6557)]
-	
+
 	lql  = "GET services\n"
         lql += "Columns: host_name host_alias host_address plugin_output host_filename\n"
         lql += "Filter: check_command = check_mk-snmp_info_v2\n"
@@ -328,7 +328,7 @@ def get_hostByLivestatus():
     	for server in all_server:
 		try:
 			livestatus_log = ""
- 			msg  = "\n#--------------------------------------------------------------------------------\n\n"	
+ 			msg  = "\n#--------------------------------------------------------------------------------\n\n"
 			msg += "Verbinde zu: " + str(server)
 			livestatus_log += msg + "\n"
 			print msg
@@ -345,7 +345,7 @@ def get_hostByLivestatus():
             			s.send(lql)
             			s.shutdown(socket.SHUT_WR)
             			lql_answer = recv_timeout(s)
-						
+
 				if len(lql_answer) < 10:
 					if attempt < max_attempts:
 						time.sleep(20)
@@ -355,17 +355,17 @@ def get_hostByLivestatus():
 					break
 
 
-            		#konvertiere Antwort in Python Sourcecode		
-			lql_answer_python = eval(lql_answer) 
+            		#konvertiere Antwort in Python Sourcecode
+			lql_answer_python = eval(lql_answer)
 
 			if len(lql_answer_python) < 10:
                                 raise Exception("ERROR: Die von Server empfangenen Daten konnten nicht in Python-Daten konvertiert werden!")
-	
-	
+
+
 	    		# alle Host in der "table" werden auf die beidne Listen backuphosts, backuphosts_ignored aufgeteilt
             		(backuphosts, backuphosts_ignored, snmpinfo_cisco_hp, snmpinfo_f5, snmpinfo_wlc) = get_backuphosts(lql_answer_python)
 
-			
+
 	    		# Alle Geraete in backuphosts werden gebackupt
 	    		backup_devices(backuphosts, backuphosts_ignored, server, livestatus_log, snmpinfo_cisco_hp, snmpinfo_f5, snmpinfo_wlc)
 			#print backuphosts
@@ -374,8 +374,8 @@ def get_hostByLivestatus():
 			livestatus_log += str(e) + "\n"
                         print str(e)
 			backup_devices([], [], server, livestatus_log, [], [])
-                       
-		
+
+
 
 
 get_hostByLivestatus()
