@@ -91,17 +91,17 @@ def get_HostByLivestatus():
                         for host in lql_answer_python:
                                 (host_name, host_alias, host_address, plugin_output, host_filename) = host
 
-                                            print host
-				                            if "cisco".lower() in plugin_output:
+                		print host
+				if "cisco".lower() in plugin_output:
 
                                                 device = Device_cisco_hp(host_address,log_file)
-					                            device.logging("--- cmk_host_filname: "+ host_filename)
+						device.logging("--- cmk_host_filname: "+ host_filename)
                                                 device.connect('user','pass',"enable_pass")
                                                 config = device.command("show running-config")
                                                 print config
 
-					                            #device.command("wr")
-					                            device.disconnect()
+						#device.command("wr")
+						device.disconnect()
                 except Exception, e:
                         print str(e)
 
