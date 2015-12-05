@@ -1,16 +1,6 @@
 mac_custom_decode_dict = {
- '00:08:5D': 'DAVINCI Telefon',
- '00:1B:4F': 'BKKG Telefon',
- '00:07:3B': 'BKKG Telefon',
- '00:19:CB': 'DAVINCI Fax-Adapter',
- '00:E0:C5': 'ThinClient',
- '00:0B:CA': 'ThinClient',
- '00:01:80': 'BKKG ThinClient',
- '00:00:74': 'Drucker',
- '00:26:73': 'Drucker',
- '00:00:AA': 'BKKG Drucker',
- '08:00:37': 'BKKG Drucker',
-
+ '00:08:5D': 'Telefon',
+ '00:1B:4F': 'Telefon',
 
 }
 
