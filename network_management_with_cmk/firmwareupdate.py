@@ -45,7 +45,7 @@ def recv_timeout(the_socket,timeout=2):
 def get_HostByLivestatus():
 
 
-        #all_server = [('10.33.20.213', 6557), ('10.33.20.210', 6557)]
+
 	all_server = [('10.33.3.3', 6557)]
         lql  = "GET services\n"
         lql += "Columns: host_name host_alias host_address plugin_output host_filename\n"
@@ -87,12 +87,6 @@ def get_HostByLivestatus():
 	log_file.close()
 
 def firmware_update(device):
-
-	#2960
-        #copy tftp://10.33.20.201/IOS/c2960-lanbasek9-mz.122-44.SE6.bin flash:
-	#boot system flash:/c2960-lanbasek9-mz.122-44.SE6.bin
-
-
 
 
                                 show_version = device.command("show version")
