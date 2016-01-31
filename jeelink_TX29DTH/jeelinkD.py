@@ -139,8 +139,9 @@ def save_data():
 
 jeelink = serial.Serial('/dev/ttyUSB0', 57600)
 #jeelink.open()
-jeelink.write("initCommands 0a v \r\n")
-
+time.sleep(10)
+jeelink.write("0a\r\n")
+print "blue LED deactivate"
 
 while True:
 	try:
