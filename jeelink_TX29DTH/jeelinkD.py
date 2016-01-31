@@ -73,7 +73,7 @@ def get_sensor_name(frame_2, frame_3):
 		if sensor_type in sensor_dict[sensor_id]:
 			return sensor_dict[sensor_id][sensor_type]["sensor_name"]
 
-	return "UNKNOWN (ID: %s (%s), type: %s)" % (sensor_id, str(frame_2), sensor_type)
+	return "SENSOR (ID: %s (%s), type: %s)" % (sensor_id, str(frame_2), sensor_type)
 
 def update_sensor_dict(sensor_id, sensor_type, temperature, humidity, battery_new, battery_weak):
 
