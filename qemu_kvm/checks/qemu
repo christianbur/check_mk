@@ -62,7 +62,7 @@ def check_qemu(name, param, info):
                     perfdata.append( ( "cpu_%", current_cpu ) )
 
 		    current_mem = int(round(float(line[5])))
-		    infotext += ", Memory: (assined: %s MB, used: %s%%" % (assigned_mem ,current_mem)
+		    infotext += ", Memory: (assigned: %s MB, used: %s%%" % (assigned_mem ,current_mem)
                     perfdata.append( ( "memory_current_%", current_mem ) )
 		    perfdata.append( ( "memory__assigned_MB", assigned_mem ) )
 
