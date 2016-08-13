@@ -29,8 +29,6 @@ Zu den relevanten Ports zähle ich folgendes:
 Bei normalen Access-Switchen gibt es in der Regel nur 1 bis 2 Uplinks zu andern Switchen, der if64_trunk Check findet daher auch nur diese Uplink Ports.
 Sobald ein neuer relevanter Ports auf einem Switch konfiguriert wird, wird er durch das "Check_MK inventory" automatisch erkannt.
 
-***Host Inventory (CMK 1.2.7):***  
-In CMK 1.2.7 hat dich die API im if64 Check etwas geändert, daher müsste ich den Check etwas anpassen. Da es jedoch auch eine neue Inventory Fuktion gibt, habe ich den Check komplett umgeschrieben um die Funktionen einfach im Inventory-Check switch_if verwenden zu könne. Bisher ist der Check aber nur in der Testumgebung getestet.
 
 ***Host Discovery:***  
 CheckMK bietet mit "Check_MK inventory" eine Möglichkeit neue Services auf dem Host zu finden, es bietet jedoch keine Möglichkeit neue Hosts zu finden.
@@ -56,10 +54,7 @@ Ich befürchte aber, dass dieses Skript für jede Umgebung angepasst werden muss
 Mit den Checks lassen sich die Switch bereits gut überwachen, manchmal möchte man aber noch mehr Infos zu dem Switchen haben.
 Seit der CMK-Version 1.2.7 gibt es auch ein HW/SW-Inventory für SNMP, und damit hab ich auch etwas gespielt
 
-switch_sn:   
-	Liefert folgende Werte:    
-			- Serinnummer    
-			- Modelname    
+   
 
 switch_ipaddr    
    Liefert alle IP-Adressen des Switches in einer Tabelle    
@@ -120,13 +115,13 @@ Suchen:
 
 **Installation:**      
 Checks:   
-CMK-Server: den Check aus "checks/CMK-VERSION/if64_neighbor" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren   
-CMK-Server: den Check aus "checks/CMK-VERSION/if64_trunk" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren  
-CMK-Server: den Check aus "checks/CMK-VERSION/if_network.include" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren  
+CMK-Server: den Check aus "checks/if64_neighbor" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren   
+CMK-Server: den Check aus "checks//if64_trunk" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren  
+CMK-Server: den Check aus "checks/if_network.include" nach "/omd/sites/SITE/local/share/check_mk/checks/" kopieren  
 CMK-Server: den Check aus "web/plugins/perfometer/if64_trunk_perfometer.py" nach "/omd/sites/SITE/local/share/check_mk/web/plugins/perfometer" kopieren  
 
 Inventory:
-CMK-Server: den Check aus "inventory/cmk_v1.2.7/*" nach "/omd/sites/SITE/local/share/check_mk/inventory/" kopieren   
+CMK-Server: den Check aus "inventory/*" nach "/omd/sites/SITE/local/share/check_mk/inventory/" kopieren   
 "checks/CMK-VERSION/if_network.include"  (wurde bereits oben kopiert)
 CMK-Server: den Check aus "web/plugins/views/switch_x.py" nach "/omd/sites/SITE/local/share/check_mk/web/plugins/views kopieren  
 
@@ -155,11 +150,11 @@ Mit diesen Tags kann man dann pro Host/Folder einstellen welchen if64 Check man 
 ***Screenshort:***
 
 Beispiel fur den Check if64_trunk
-![ScreenShot](https://github.com/christianbur/check_mk/blob/master/if64_xxxxx/1.png
+![ScreenShot](https://github.com/christianbur/check_mk/blob/master/if64_xx/1.png
 
 Interface down mit gespeicherten alten Nachbarn
-![ScreenShot](https://github.com/christianbur/check_mk/blob/master/if64_xxxxx/2.png)
+![ScreenShot](https://github.com/christianbur/check_mk/blob/master/if64_xx/2.png)
 
 Nachbar hat sich geändert
-![ScreenShot](https://github.com/christianbur/check_mk/blob/master/if64_xxxxx/3.png)
-![ScreenShot](https://github.com/christianbur/check_mk/blob/master/if64_xxxxx/4.png)
+![ScreenShot](https://github.com/christianbur/check_mk/blob/master/if64_xx/3.png)
+![ScreenShot](https://github.com/christianbur/check_mk/blob/master/if64_xx/4.png)
