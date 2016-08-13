@@ -1,7 +1,0 @@
-mac_custom_decode_dict = {
- '00:08:5D': 'Telefon',
- '00:1B:4F': 'Telefon',
-
-}
-
-

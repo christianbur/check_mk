@@ -32,6 +32,12 @@ def decode_oid_asa(oid):
 
 def inventory_cisco_asa_vpnsession(info):
 
+	if len(info) == 0:
+		return []
+
+	if len(info[0]) == 0:
+		return []
+
 	counter = 0
 	for value in info[0][0]:
 		counter += saveint(value)

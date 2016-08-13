@@ -1,0 +1,186 @@
+#!/usr/bin/python
+
+#import netsnmp
+#import signal
+
+
+# Author: Christian Burmeister
+
+class MAC_SNMP(object):
+        # http://www.cisco.com/c/en/us/support/docs/ip/simple-network-management-protocol-snmp/44800-mactoport44800.html
+
+        def __init__(self, ip_address, snmp_credentials, mac_decode_dict={}, mac_custom_decode_dict={}):
+            self.__ip_address      = ip_address
+            self.__snmp_credentials  = snmp_credentials
+            self.__mac_decode_dict = mac_decode_dict
+            self.__mac_custom_decode_dict = mac_custom_decode_dict
+            self.__all_macs        = {}
+            self.__all_vlans       = []
+
+        def __get_oid(self, oid, index = ""):
+
+
+	    if index != "":
+		context_v2 = "@" + index
+		context_v3 = "vlan-" + index
+	    else:
+		context_v2 = ""
+		context_v3 = ""
+
+
+	    version = 1
+	    timeout = timeout = int(1 * 1000000) # default: 1 second
+	    retries = 3	
+ 	    if type(self.__snmp_credentials) in (str, unicode):
+		version = 2
+    	    else:
+        	version = 3
+        	if len(self.__snmp_credentials) == 6:
+            		sec_level, auth_proto, sec_name, auth_pass, priv_proto, priv_pass = self.__snmp_credentials
+        	elif len(self.__snmp_credentials) == 4:
+            		sec_level, auth_proto, sec_name, auth_pass = self.__snmp_credentials
+            		priv_proto = 'DEFAULT'
+            		priv_pass  = ''
+        	else:
+            		raise MKGeneralException("Invalid SNMP credentials '%r' for ip %s: "
+                              "must be string, 4-tuple or 6-tuple" % (self.__snmp_credentials, self.__ip_address))
+
+		
+
+
+    	    if version != 3:
+        	session = netsnmp.Session(Version = version, DestHost = self.__ip_address,
+            		Timeout    = timeout,
+            		Retries    = retries,
+            		Community  = self.__snmp_credentials + context_v2,
+        	)
+      	    else:
+        	session = netsnmp.Session(Version = version, DestHost = self.__ip_address,
+            		Timeout   = timeout,
+            		Retries   = retries,
+            		SecLevel  = sec_level,
+            		AuthProto = auth_proto.upper(),
+            		AuthPass  = auth_pass,
+            		SecName   = sec_name,
+            		PrivProto = priv_proto.upper(),
+            		PrivPass  = priv_pass,
+            		Context   = context_v3,
+        	)
+
+
+            session.UseLongNames = 1
+            session.UseNumeric = 1
+            session.Retries=2
+
+	    oid_varlist = netsnmp.VarList(netsnmp.Varbind(oid))
+
+            res = session.walk(oid_varlist)
+
+            result_dict = {}
+            i = 0
+            for var in oid_varlist:
+                if var.tag != None:
+                        oid_suffix = var.tag.replace(oid,"") + "." + var.iid
+
+                        if oid_suffix[:1] == ".":
+                                oid_suffix = oid_suffix[1:]
+                        result_dict[oid_suffix] = res[i]
+                        i += 1
+
+            return result_dict
+
+
+        def __get_vlans(self):
+            oid_vtpVlanState = '.1.3.6.1.4.1.9.9.46.1.3.1.1.2'
+            vtpVlanState_dict = self.__get_oid(oid_vtpVlanState)
+
+
+            for oid in vtpVlanState_dict:
+                vlan = oid.replace("1.", "")
+                self.__all_vlans.append(vlan)
+           
+
+
+        def __convert_mac_decimal2hex(self,mac_decimal):
+                mac_list = []
+                for x in  mac_decimal.split("."):
+                        x_string = str(hex(int(x))).replace("0x","")
+                        if len(x_string) == 1:
+                                x_string = "0" + x_string
+                        mac_list.append(x_string)
+
+                return "".join(mac_list)
+
+
+                mac = "".join( [str(hex(int(x))).replace("0x","") for x in mac_decimal.split(".")] )
+
+        def __get_mac_vlan_hp(self):
+                oid_dot1dTpFdbPort = '.1.3.6.1.2.1.17.4.3.1.2'
+                dot1dTpFdbPort_dict   = self.__get_oid(oid_dot1dTpFdbPort)
+
+
+                for mac_decimal in dot1dTpFdbPort_dict:
+                        if_index = dot1dTpFdbPort_dict[mac_decimal]
+                        vlan = "-"
+                        mac = self.__convert_mac_decimal2hex(mac_decimal)
+
+                        self.__add_mac(if_index, vlan, mac)
+
+        def __get_mac_vlan_cisco(self):
+            oid_dot1dTpFdbAddress    = '.1.3.6.1.2.1.17.4.3.1.1'
+            oid_dot1dTpFdbPort       = '.1.3.6.1.2.1.17.4.3.1.2'
+            oid_dot1dBasePortIfIndex = ".1.3.6.1.2.1.17.1.4.1.2"
+
+
+            for vlan in self.__all_vlans:
+                dot1dTpFdbAddress_dict    = self.__get_oid(oid_dot1dTpFdbAddress, vlan)
+                dot1dTpFdbPort_dict       = self.__get_oid(oid_dot1dTpFdbPort, vlan)
+                dot1dBasePortIfIndex_dict = self.__get_oid(oid_dot1dBasePortIfIndex, vlan)
+
+
+                for if_index_mac in  dot1dTpFdbAddress_dict.keys():
+                        mac_hex =  dot1dTpFdbAddress_dict[if_index_mac]
+                        mac =  "".join ([ "%02X" % ord( x ) for x in list(mac_hex)])
+                        dot1dTpFdbPort_index = dot1dTpFdbPort_dict.get(if_index_mac, "UNKNOWN")
+                        if_index = dot1dBasePortIfIndex_dict.get(dot1dTpFdbPort_index, "UNKNOWN")
+
+                        self.__add_mac(if_index, vlan, mac)
+
+        def __add_mac(self,if_index, vlan, mac):
+
+                (mac_formatted, mac_vendor) = self.__mac_formatter(mac)
+
+                if if_index not in self.__all_macs:
+                        self.__all_macs[if_index] = {}
+                if vlan not in self.__all_macs[if_index]:
+                        self.__all_macs[if_index][vlan] = []
+
+                #mac_formatted_vendor = "%s (%s)" % (mac_formatted, mac_vendor)
+                self.__all_macs[if_index][vlan].append( (mac_formatted, mac_vendor)  )
+
+
+
+        def __mac_formatter(self,mac):
+                if len(mac) == 12:
+                        mac = mac.upper()
+                        mac_formatted = "%s%s:%s%s:%s%s:%s%s:%s%s:%s%s" % (tuple(list(mac)))
+                        if mac_formatted[:8] in self.__mac_decode_dict:
+                                mac_vendor = self.__mac_decode_dict[mac_formatted[:8]]
+                        else:
+                                mac_vendor = "UNKNOWN"
+
+                        if mac_formatted[:8] in self.__mac_custom_decode_dict:
+                                mac_vendor +=  " [" + self.__mac_custom_decode_dict[mac_formatted[:8]] + "] "
+
+                        return (mac_formatted, mac_vendor)
+                return (mac, "----ERROR-----")
+
+        def get_all_macs(self):
+            self.__get_vlans()
+
+            if len(self.__all_vlans) != 0:
+                self.__get_mac_vlan_cisco()
+            else:
+                self.__get_mac_vlan_hp() 
+
+            return self.__all_macs

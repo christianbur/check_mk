@@ -98,6 +98,7 @@ def inventory_cisco_wlc(info):
     for node in bsnAP_Name_dict.keys():
         for ap in bsnAP_Name_dict[node].keys():
 		controller = { "bsnAPPrimaryMwarName":bsnAP_Name_dict[node][ap]["bsnAPPrimaryMwarName"] }
+
 		
     		inventory.append( (ap, controller ) )
 

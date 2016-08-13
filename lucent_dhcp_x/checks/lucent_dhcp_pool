@@ -60,70 +60,75 @@ dynamicDhcp_default_levels = (85.0, 95.0)
 outstanding_default_levels = 10
 unavailible_default_levels = 15
 
-def get_subnetmask(item, dhcpServRangeSubnetMask):
-	mask_list = []
-	for (subnet_ip, value) in dhcpServRangeSubnetMask:
+def get_subnetmask(dhcpServRangeSubnetMask):
+	mask_map = {}
+	for (subnet_ip, mask) in dhcpServRangeSubnetMask:
 		subnet = ".".join(subnet_ip.split(".")[:4])
-                if item == subnet:
-			if value not in mask_list:
-				mask_list.append(value)
-
-
-	if len(mask_list) == 1:
-		mask = mask_list[0]
+                
 		mask_cidr = str(sum([bin(int(x)).count('1') for x in mask.split('.')]))
-		return mask_cidr
-	else:
-		return "ERROR_MASK: " + str(mask_list)
+		if subnet not in mask_map:
+			mask_map[subnet] = mask_cidr
 
-def convert_list2map(item, dhcpServRangeType):
+	return mask_map
+
+def convert_list2map(dhcpServRangeType):
 	dhcpServRangeType_desc_map = {"1":"manBootp", "2":"autoBootp", "3":"manDhcp", "4":"autoDhcp", "5":"dynamicDhcp"}
 	type_map = {}
 	for (subnet_ip, value) in dhcpServRangeType:
 		subnet = ".".join(subnet_ip.split(".")[:4])
-		if item == subnet:
-			type_map[subnet_ip] = dhcpServRangeType_desc_map[value]
+		type_map[subnet_ip] = dhcpServRangeType_desc_map[value]
 	return type_map	
 
 
-def parse_lucent_dhcp_pool(item, pool_list, type_map):
+def parse_dhcpServRangeType(pool_list, type_map):
 
 	pool_map = {}
 	for (subnet_ip, value) in pool_list:
 		subnet = ".".join(subnet_ip.split(".")[:4])
-		if item == subnet:
-			key = subnet + "_" + type_map[subnet_ip]
-			if key not in pool_map.keys():
-				pool_map[key] = {"sub_pools":0, "counter":0, "subnet":subnet, "type":type_map[subnet_ip]}
+		key = subnet + "_" + type_map[subnet_ip]
+		if key not in pool_map.keys():
+			pool_map[key] = {"sub_pools":0, "counter":0, "subnet":subnet, "type":type_map[subnet_ip]}
 
-			pool_map[key]["sub_pools"]  += 1
-			pool_map[key]["counter"] += int(value)
+		pool_map[key]["sub_pools"]  += 1
+		pool_map[key]["counter"] += int(value)
 
 	return pool_map
 	
 
-def inventory_lucent_dhcp_pool(info):
-    dhcpServRangeInUse = info[0]
+def parse_lucent_dhcp_pool(info):
+    	dhcpServRangeType_map               = convert_list2map(info[3])
+    	dhcpServRangeInUse_map              = parse_dhcpServRangeType(info[0], dhcpServRangeType_map)
+    	dhcpServRangeOutstandingOffers_map  = parse_dhcpServRangeType(info[1], dhcpServRangeType_map)
+    	dhcpServRangeUnavailable_map        = parse_dhcpServRangeType(info[2], dhcpServRangeType_map)
+    	dhcpServRangeUnused_map             = parse_dhcpServRangeType(info[4], dhcpServRangeType_map)
+    	dhcpServRangeSubnetMask_map         = get_subnetmask(info[5])
+
+    	parsed = (dhcpServRangeType_map, dhcpServRangeInUse_map, dhcpServRangeOutstandingOffers_map, dhcpServRangeUnavailable_map, \
+              dhcpServRangeUnused_map, dhcpServRangeSubnetMask_map)
+
+    	return parsed
+
+
+
+def inventory_lucent_dhcp_pool(parsed):
+    (dhcpServRangeType_map, dhcpServRangeInUse_map, dhcpServRangeOutstandingOffers_map, dhcpServRangeUnavailable_map, \
+    dhcpServRangeUnused_map, dhcpServRangeSubnetMask_map) = parsed
+
 
     inventory = []
 
-    for (subnet_ip, value) in dhcpServRangeInUse:
-	subnet = ".".join(subnet_ip.split(".")[:4])
-	if (subnet, None) not in inventory:
+    for subnet_type in sorted(dhcpServRangeInUse_map.keys()):
+	subnet = subnet_type.split("_")[0]
+	if subnet not in inventory:
 		inventory.append( (subnet, None) )
 
     return inventory
 
 
-def check_lucent_dhcp_pool(item, params, info):
+def check_lucent_dhcp_pool(item, params, parsed):
    
-    dhcpServRangeType_map 		= convert_list2map(item, info[3])
-    dhcpServRangeInUse_map              = parse_lucent_dhcp_pool(item, info[0], dhcpServRangeType_map)
-    dhcpServRangeOutstandingOffers_map  = parse_lucent_dhcp_pool(item, info[1], dhcpServRangeType_map)
-    dhcpServRangeUnavailable_map        = parse_lucent_dhcp_pool(item, info[2], dhcpServRangeType_map)
-    dhcpServRangeUnused_map             = parse_lucent_dhcp_pool(item, info[4], dhcpServRangeType_map)
-    dhcpServRangeSubnetMask		= get_subnetmask(item, info[5])
-    
+    (dhcpServRangeType_map, dhcpServRangeInUse_map, dhcpServRangeOutstandingOffers_map, dhcpServRangeUnavailable_map, \
+    dhcpServRangeUnused_map, dhcpServRangeSubnetMask_map) = parsed 
  
     msg = []
     if len(dhcpServRangeInUse_map) == len(dhcpServRangeOutstandingOffers_map) and \
@@ -133,7 +138,10 @@ def check_lucent_dhcp_pool(item, params, info):
 
 	state = 0
 
-    	msg += "Subnet:%11s/%s" % (item, dhcpServRangeSubnetMask)
+	if item not in dhcpServRangeSubnetMask_map:
+		return 3, "Subnet not found in SNMP data" 
+
+    	msg += "Subnet:%11s/%s" % (item, dhcpServRangeSubnetMask_map[item])
 	msg_types = []
 	for subnet_type in sorted(dhcpServRangeInUse_map.keys()):
 		if dhcpServRangeInUse_map[subnet_type]["subnet"] == item:
@@ -144,7 +152,7 @@ def check_lucent_dhcp_pool(item, params, info):
 			unused	    = dhcpServRangeUnused_map[subnet_type]["counter"]
 			outstanding = dhcpServRangeOutstandingOffers_map[subnet_type]["counter"]
 			unavailible = dhcpServRangeUnavailable_map[subnet_type]["counter"]
-			#sub_pools   = dhcpServRangeInUse_map[subnet_type]["sub_pools"] 
+			sub_pools   = dhcpServRangeInUse_map[subnet_type]["sub_pools"] 
 
 			if dhcp_type not in ["manDhcp", "dynamicDhcp"]:
 				msg_types += " -- [%s:  (!)(" % dhcp_type
@@ -164,7 +172,7 @@ def check_lucent_dhcp_pool(item, params, info):
                                 if state < 1: state = 1
                         else:
                                 msg_types += "/%s"   % unavailible
-                        #msg_types += "/%s"    % sub_pools"	
+                        msg_types += "/%s"    % sub_pools	
 
                         usage_procent = 100.0 * inuse / total
 
@@ -179,8 +187,8 @@ def check_lucent_dhcp_pool(item, params, info):
                                 msg_types += ") %.1f%% ]" % usage_procent
 
 	msg += msg_types
-	#msg += " -- (total/inuse/unused/outstandingOffers/unavailable/sub_pools)"
-	msg += " -- (total/inUse/unUsed/outstandingOffers/unavailable)"
+	msg += " -- (total/inuse/unused/outstandingOffers/unavailable/sub_pools)"
+	#msg += " -- (total/inUse/unUsed/outstandingOffers/unavailable)"
 
 	perfdata = []
     elif len(dhcpServRangeInUse_map) == 0:
@@ -198,6 +206,7 @@ def check_lucent_dhcp_pool(item, params, info):
 check_info["lucent_dhcp_pool"] = {
     "check_function"        : check_lucent_dhcp_pool,
     "inventory_function"    : inventory_lucent_dhcp_pool,
+    'parse_function'        : parse_lucent_dhcp_pool,    
     "service_description"   : "DHCP: %s",
 #    "group"                 : "lucent",
     "has_perfdata"          : True,

@@ -24,11 +24,22 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
-# updated by
-# Christian Burmeister 05/2015
+#standard_firmware_dict = {
+#        "WS-C2950-"     :(True,  ["Version 12.1(22)EA14"]),
+#        "WS-C2950C-"    :(True,  ["Version 12.1(22)EA14"]),
+#        "WS-C2950G-"    :(True,  ["Version 12.1(22)EA14"]),
+#        "WS-C3550-"     :(True,  ["Version 12.2(44)SE6"]),
+#        "WS-C2960-"     :(False, ["Version 12.2(55)SE10"]),
+#        "WS-C2960G-"    :(False, ["Version 12.2(55)SE10"]),
+#        "WS-C3560-"     :(True,  ["Version 12.2(55)SE10"]),
+#        "WS-C3560G-"    :(True,  ["Version 12.2(55)SE10"]),
+#        "WS-C3750-"     :(False, ["Version 12.2(55)SE10"]),
+#        "WS-C3750G-"    :(False, ["Version 12.2(55)SE10"]),
+#        "WS-C3750X-"    :(False,  ["Version 15.0(2)SE9"]),
+#        "WS-C2960X-"    :(False, ["Version 15.2(2)E4"]),
+#}
 
-
-def list_find(item, list):
+def list_find_snmp_info_v2(item, list):
         found = False
         for i in list:
                 if item.lower().find(i.lower()) != -1:
@@ -38,85 +49,154 @@ def list_find(item, list):
         return found
 
 
-def inventory_snmp_info_v2(info):
-    if len(info[2][0]) >= 4:
+def get_modelname_serialnum(entPhysicalSerialNum_entPhysicalModelName):
 
-        serialnum = ""
-        if len(info[0]) >= 1:
-                if info[0][0][0] != "":
-                        serialnum = info[0][0][0]
-                else:
-                        serialnum = info[0][0][1]
+        oid_1 = None
+        oid_1001 = None
+        oid_first = None
+
+        for oid, entPhysicalSerialNum, entPhysicalModelName in entPhysicalSerialNum_entPhysicalModelName:
+                if entPhysicalSerialNum == None:
+                        entPhysicalSerialNum = ""
+                if entPhysicalModelName == None:
+                        entPhysicalModelName = ""
+
+                entPhysicalSerialNum = entPhysicalSerialNum.strip()
+                entPhysicalModelName = entPhysicalModelName.strip()
+
+                # HP
+                if oid == "1" and entPhysicalModelName not in ["","Unspecified"]:
+                        oid_1 = (oid, entPhysicalModelName, entPhysicalSerialNum)
+
+                # Cisco IOS
+                if oid == "1001" and entPhysicalModelName not in ["","Unspecified"]:
+                        oid_1001 = (oid, entPhysicalModelName, entPhysicalSerialNum)
+
+                # Cisco Nexus, Cisco big ASA
+                if entPhysicalModelName not in ["","Unspecified"] and oid_first == None:
+                        oid_first = (oid, entPhysicalModelName, entPhysicalSerialNum)
+
+
+        if oid_1 != None:
+                modelname = oid_1[1]
+                serialnum = oid_1[2]
+        elif oid_1001 != None:
+                modelname = oid_1001[1]
+                serialnum = oid_1001[2]
+        elif oid_first != None:
+                modelname = oid_first[1]
+                serialnum = oid_first[2]
         else:
+                modelname = "NOTFOUND"
                 serialnum = "NOTFOUND"
 
-        return [ (None, [serialnum.strip()]) ]
 
-def check_firmware(switch_info):
-        sysDescr  = switch_info[3]
-        modelName = switch_info[5]
+        modelname = str(modelname).strip()
+        serialnum = str(serialnum).strip()
 
-        if list_find(sysDescr, ["sysDescr: Cisco IOS Software","sysDescr: Cisco Internetwork Operating System Software"]):
-                expect_firmware = ["IPSERVICESK9","ENTSERVICESK9","PK9S","SPSERVICESK9","UNIVERSALK9", "IPBASEK9", "LANBASEK9", "C2950-I6K2L2Q4-M"]
-                expect_firmware += ["CBS30X0-LANBASE-M", "CBS30X0-IPBASE-M"]
-                if not list_find(sysDescr, expect_firmware):
-                        switch_info.append("INFO: Firmware-Version nicht bekannt, ggf. ohne SSH (!)")
+        return (modelname, serialnum)
+
+
+def inventory_snmp_info_v2(info):
+
+    (entPhysicalSerialNum_entPhysicalModelName, snmp_info) = info
+
+    if len(snmp_info[0]) >= 4:
+        (modelname, serialnum) = get_modelname_serialnum(entPhysicalSerialNum_entPhysicalModelName)
+        return [ (None, {"serialnum":serialnum}) ]
+    
+    return []
+
+
+def check_firmware(params, sysDescr, modelname, switch_info):
+
+        return_ok = 0
+        if not params.has_key("standard_firmware"):
+                return return_ok
+
+
+        for item in params.get("standard_firmware"):
+                (standard_firmware_model, standard_firmware_version, standard_firmware_return_status) = item
+
+                if modelname.startswith(standard_firmware_model):
+
+                        if not standard_firmware_version in sysDescr: 
+                                switch_info.append("(!) Firmware_Check: Standard Firmware is %s - Update required!! (!)" % str(standard_firmware_version))
+                                
+                                return int(standard_firmware_return_status)
+                        else:
+                                #switch_info.append("Firmware_Check: OK" )
+                                return return_ok
+
+
+        #switch_info.append("Firmware_Check: NOT_FOUND" )
+        return return_ok
+
+def trim_sysDescr(sysDescr):
+        sysDescr = sysDescr.replace("\r\n", ", ").rstrip()
+
+        if "Cisco" in sysDescr and "RELEASE SOFTWARE" in sysDescr:
+                sysDescr = sysDescr.replace("Cisco Internetwork Operating System Software  IOS (tm)", "Cisco IOS")
+
+                sysDescr = sysDescr.split("RELEASE SOFTWARE")[0].strip()
+                if sysDescr.endswith(","):
+                         sysDescr =  sysDescr[:-1]
+                return  sysDescr
+        else:
+                return sysDescr
+
+def check_serialnum(params, serialnum, switch_info):
+        stored_serialnum = params.get("serialnum").strip()
+
+        if stored_serialnum != serialnum.strip():
+                switch_info.append("(!) SerialNum changed: (old: "+ stored_serialnum  +"), Wahrscheinlich wurde das Geraet getauscht! (!)")
+                return_warn = 1
+                return return_warn
+        else:
+                return_ok = 0
+                return return_ok
 
 
 def check_snmp_info_v2(item, params, info):
 
-    if len(info[2][0]) >= 4:
+    (entPhysicalSerialNum_entPhysicalModelName, snmp_info) = info
+    
+
+    if len(snmp_info[0]) >= 4:
         switch_info = []
 
-        switch_info.append("sysName: "     + info[2][0][2])
-        switch_info.append("sysLocation: " + info[2][0][3])
-        switch_info.append("sysContact: "  + info[2][0][1])
-        switch_info.append("sysDescr: "    + info[2][0][0])
+        (modelname, serialnum) = get_modelname_serialnum(entPhysicalSerialNum_entPhysicalModelName)
+        sysDescr = trim_sysDescr(snmp_info[0][0])
 
-        serialnum = ""
-        if len(info[0]) >= 1:
-                if info[0][0][0] != "":
-                        serialnum = info[0][0][0]
-                        switch_info.append("SerialNum: " + serialnum)
-                else:
-                        serialnum = info[0][0][1]
-                        switch_info.append("SerialNum: " + serialnum)
-        else:
-                serialnum = "NOTFOUND"
-                switch_info.append("SerialNum: " + serialnum)
+        switch_info.append("sysName: "     + snmp_info[0][2])
+        switch_info.append("sysLocation: " + snmp_info[0][3])
+        switch_info.append("sysContact: "  + snmp_info[0][1])
+        switch_info.append("sysDescr: "    + sysDescr )
+        switch_info.append("SerialNum: "   + serialnum)
+        switch_info.append("ModelName: "   + modelname)
+
+        check_firmware_return_status  = check_firmware(params, sysDescr, modelname, switch_info)
+        check_serialnum_return_status = check_serialnum(params, serialnum, switch_info)
 
 
-        if len(info[1]) >= 1:
-                if info[1][0][0] != "":
-                        switch_info.append("ModelName: " + info[1][0][0])
-                else:
-                        switch_info.append("ModelName: " + info[1][0][1])
-        else:
-                switch_info.append("ModelName: NOTFOUND")
 
-
-        check_firmware(switch_info)
-
-        stored_serialnum = params[0].strip()
-        if stored_serialnum == serialnum.strip():
-                return (0, ' ---- '.join(switch_info))
-        else:
-                return (1, "SerialNum changed: (old: "+ stored_serialnum  +") (!) Wahrscheinlich wurde das Geraet getauscht! -- " + ' ---- '.join(switch_info))
+        return_status = max([check_firmware_return_status, check_serialnum_return_status])
+        return (return_status, ' ---- '.join(switch_info))
     else:
         return (3, "No data retrieved")
-
+   
 
 # This check works on all SNMP hosts
 check_info["snmp_info_v2"] = {
-    'check_function':          check_snmp_info_v2,
-    'inventory_function':      inventory_snmp_info_v2,
-    'service_description':     'SNMP Info v2',
-    'snmp_info':               [(".1.3.6.1.2.1.47.1.1.1.1.11",  ["1", "1001"]), # entPhysicalSerialNum
-                                (".1.3.6.1.2.1.47.1.1.1.1.13",  ["1", "1001"]), # entPhysicalModelName
-                                ('.1.3.6.1.2.1.1', ['1',  #sysDescr
+    'check_function'           : check_snmp_info_v2,
+    'inventory_function'       : inventory_snmp_info_v2,
+    "group"                    : "snmp_info_v2_parameters",
+    'service_description'      : 'SNMP Info v2',
+    'snmp_info'                : [(".1.3.6.1.2.1.47.1.1.1.1",  [OID_END, "11","13"]), # entPhysicalSerialNum
+                                  ('.1.3.6.1.2.1.1', ['1',  #sysDescr
                                                     '4',  #sysContact
-                                                    '5',  #sysName
-                                                    '6']) #sysLocation
-                                ],
-    'snmp_scan_function':      lambda oid: oid(".1.3.6.1.2.1.1.1.0") != None,
+                                                    '5',  #sysName 
+                                                    '6']), #sysLocation
+                                 ],
+    'snmp_scan_function'       : lambda oid: oid(".1.3.6.1.2.1.1.1.0") != None,
 }

@@ -34,7 +34,10 @@
 #       this is the host name used to identify the
 #       remote peer."
 
-
+try:
+    import datetime
+except:
+    pass
 
 
 dhcpServSystemStatus_map = { "0":"starting", "1":"running", "2":"stopping", "3":"stopped", "4":"reload" }

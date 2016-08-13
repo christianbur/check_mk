@@ -1,0 +1,6 @@
+mac_custom_decode_dict = {
+ '00:08:5D': 'Aastra Telefon',
+ '00:E0:C5': 'ThinClient',
+ '00:0B:CA': 'ThinClient',
+ '00:26:73': 'Drucker',
+}

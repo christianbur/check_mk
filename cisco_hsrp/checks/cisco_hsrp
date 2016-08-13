@@ -24,9 +24,6 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
-# updated by
-# Christian Burmeister 05/2015
-
 
 # Good docs:
 # http://www.cisco.com/en/US/tech/tk648/tk362/technologies_tech_note09186a0080094a91.shtml
@@ -114,11 +111,11 @@ def check_cisco_hsrp(item, params, info):
             # Validate that we the inventorized state is a "good one"
             # if it's also the one we have now, then we're fine.
 
-            msgtxt = "HSRP Group %s: (Status: %s, VIP: %s, Active: %s, Standby: %s)" % (vip_grp, hsrp_states[hsrp_state], vip, actrouter, sbrouter)
+	    msgtxt = "HSRP Group %s: (Status: %s, VIP: %s, Active: %s, Standby: %s)" % (vip_grp, hsrp_states[hsrp_state], vip, actrouter, sbrouter)
 
             if hsrp_state_wanted == 5  and hsrp_state == hsrp_state_wanted:
                 state = 0
-                msgtxt += " -- STANDBY"
+                msgtxt += " -- STANDBY" 
             elif  hsrp_state_wanted == 6  and hsrp_state == hsrp_state_wanted:
                 state = 0
                 msgtxt += " -- ACTIVE"
@@ -126,7 +123,7 @@ def check_cisco_hsrp(item, params, info):
                 if sbrouter == "0.0.0.0":
                         state = 1
                         msgtxt += " (No Standby-Router found!)"
-
+              
             # otherwise if it's a good one, but flipped, then we are in a failover
             elif hsrp_state == 5 or hsrp_state == 6:
                 state = 1
@@ -135,7 +132,7 @@ def check_cisco_hsrp(item, params, info):
             else:
                 state = 2
                 msgtxt += " -- INCORRECT HSRP-STATE!"
-                if vip.startswith("0.0.0.0"):
+		if vip.startswith("0.0.0.0"):
                         msgtxt += " (Error in HSRP-CONFIG)"
 
             return (state, msgtxt)

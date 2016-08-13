@@ -1,5 +1,4 @@
 import socket
-import paramiko
 import telnetlib
 import datetime
 import time
@@ -7,8 +6,15 @@ import re
 import sys
 import traceback
 
+sys.path.insert(0, '/daten/python/python_module/ecdsa-0.13-py2.6.egg')
+import ecdsa
+sys.path.insert(0, '/daten/python/python_module/paramiko-1.17.2')
+import paramiko
+
+print "Paramiko Version: " + paramiko.__version__
+
 class Device_cisco_hp(object):
-        def __init__(self, ip, log_file=None):
+        def __init__(self, ip, log_file=None, enable_logging_print=True):
                 self.__ip = None
                 self.__tacacs_username = None
                 self.__tacacs_password = None
@@ -33,6 +39,8 @@ class Device_cisco_hp(object):
                 self.__command_counter = 0
                 self.__preferred_protocol = "ssh"
                 self.__connection_time_beginn = datetime.datetime.now()
+		self.__enable_logging_print =  enable_logging_print
+		self.__exit_userprompt = False
 
 
                 if log_file != None:
@@ -69,6 +77,13 @@ class Device_cisco_hp(object):
 
         def get_demo_config_mode(self):
                 return self.__demo_config_mode
+
+	def set_exit_userprompt(self, mode):
+		if mode == True:
+			self.logging("--- enable exit_userprompt")
+			self.__exit_userprompt = True
+		elif mode == False:
+			self.__exit_userprompt = False
 
         def __set_ip(self,ip):
                 try:
@@ -124,13 +139,14 @@ class Device_cisco_hp(object):
 
         def __get_configprompt(self):
                 #http://rubular.com/
-                return re.escape(self.__switchname_raw[:11]) + "[+A-Za-z0-9_-]{0,15}\(config[+A-Za-z0-9_-]{0,15}\)#"
+                return re.escape(self.__switchname_raw[:16]) + "[+A-Za-z0-9_-]{0,15}\(config[+A-Za-z0-9_-]{0,15}\)#"
 
         def logging(self,text):
                 if self.__log_file != None:
                         self.__log_file.write(text + "\n")
 
-                print text
+		if self.__enable_logging_print:
+                	print text
 
         def __error(self,text):
                 if self.__log_file != None:
@@ -233,7 +249,8 @@ class Device_cisco_hp(object):
                                         self.__ssh_client.connect(self.get_ip(), username=self.get_tacacs_username(), 
                                                                                  password=self.get_tacacs_password(),
                                                                                  allow_agent=False,look_for_keys=False,
-                                                                                 timeout=60)
+                                                                                 timeout=60,
+										 banner_timeout=60)
                                         self.__ssh_conn = self.__ssh_client.invoke_shell()
 
                                         self.__find_prompt(debug_file)
@@ -327,9 +344,15 @@ class Device_cisco_hp(object):
                                         self.__send_cmd(self.get_tacacs_password()+"\n")
                                         self.__loginsequence.append("TPASSWORD")
                         elif index == 3:
-                                self.logging("--- Found: user prompt, sent -enable- command")
-                                self.__send_cmd("enable\n")
-                                self.__loginsequence.append("USERPROMPT_ENABLE")
+				if self.__exit_userprompt:
+                                	self.logging("--- Found: user prompt (Exit Loop)")
+                                	found_priv = True
+                                	self.__current_prompt = "USER "
+                                	self.__loginsequence.append("USERPROMPT")
+				else:
+                                	self.logging("--- Found: user prompt, sent -enable- command")
+                                	self.__send_cmd("enable\n")
+                                	self.__loginsequence.append("USERPROMPT_ENABLE")
                         elif index == 4:
                                 self.logging("--- Found: config prompt, send -exit- command")
                                 self.__send_cmd("exit\n")
@@ -390,7 +413,13 @@ class Device_cisco_hp(object):
 
                 #self.__debug_interact()
 
-                regex_list = [self.__get_privprompt()] 
+
+		if  self.__exit_userprompt:
+                	regex_list = [self.__get_userprompt()] 
+			c = re.compile(r"([a-zA-Z0-9._+-]+)(>).*",re.MULTILINE)
+		else:
+			regex_list = [self.__get_privprompt()]
+			c = re.compile(r"([a-zA-Z0-9._+-]+)(#).*",re.MULTILINE)
 
                 # press Enter for clean prompt
                 self.__send_cmd("\n")
@@ -402,22 +431,30 @@ class Device_cisco_hp(object):
                 if self.__debug_mode:
                         debug_file.write("(---BEGIN-(findprompt)--) clear_output list: " + str(list(clear_output))  + "(---END---)")
 
-                c = re.compile(r"([a-zA-Z0-9._+-]+)(#).*",re.MULTILINE)
                 m = c.search(clear_output)
                 if not m:
                          self.__error("not able to find promptname")
                 else:
                         self.__switchname_raw = m.group(1)
                         self.logging("--- switchname: " + self.__switchname_raw)
-                        self.logging("--- set prompt: " + self.__get_userprompt() + ", priv: " + self.__get_privprompt() + ", config: " + self.__get_configprompt())
+			self.logging("--- set user-prompt:   " + self.__get_userprompt())
+			self.logging("--- set priv-prompt:   " + self.__get_privprompt())
+			self.logging("--- set config-prompt: " + self.__get_configprompt())
 
                 if self.__debug_mode:
                         debug_file.write("(---BEGIN---) switchname: " + self.get_switchname() + " list: " + str(list(clear_output))      + "(---END---)")
 
 
         def __init_terminal(self):
-                
-                regex_list = [self.__get_privprompt()]
+               
+                if  self.__exit_userprompt:
+                        regex_list = [self.__get_userprompt()]
+                else:
+                        regex_list = [self.__get_privprompt()]
+
+		#  Terminal wight
+                self.__send_cmd("terminal width 511\n")
+                (index_1, match_1, output_1) = self.__expect(regex_list)
 
                 # No paging fuer Cisco Switche
                 self.__send_cmd("terminal length 0\n")
@@ -474,7 +511,6 @@ class Device_cisco_hp(object):
 
         def __ssh_expect(self, regex_list='', timeout=10):
 
-                 
 
                 buffer_size=100
                 buffer = ""
@@ -491,17 +527,19 @@ class Device_cisco_hp(object):
 
                         buffer = self.__ssh_conn.recv(buffer_size)
 
-                        if self.__debug_ssh_expect:
-                                sys.stdout.write("\nssh_buffer: " + buffer.strip() + "\n")
-                                sys.stdout.flush()
-
                         if len(buffer) == 0:
                                 break
 
                         output += buffer
 
+                        if self.__debug_ssh_expect:
+                                sys.stdout.write("\nssh_buffer: " + str(list(buffer)) + "\n")
+                                sys.stdout.write("\noutput: " + str(self.__vt100_cleaner(output)) + "\n")
+                                sys.stdout.flush()
+
                         i = -1
                         for regex in regex_list:
+
                                 i = i + 1
                                 if re.search(regex ,output, re.DOTALL) != None:
                                         if self.__debug_ssh_expect:
@@ -514,13 +552,20 @@ class Device_cisco_hp(object):
 
                                         break
 
-                    regex_position = re.search(match, output)
-                    self.__ssh_buffer =  output[regex_position.end():]
-                    output = output[:regex_position.end()]
+
+	            if found:
+                    	regex_position = re.search(match, output)
+                    	self.__ssh_buffer =  output[regex_position.end():]
+                    	output = output[:regex_position.end()]
+		    else:	
+			index = -1
+			match = ""
+			output = "ERROR: error_regex_not_found_in_output"
+
                 except socket.timeout:
                         index = -1
                         match = ""
-                        output = "error_ssh_expect_timeout"
+                        output = "ERROR: error_ssh_expect_socket_timeout"
 
 
                 return (index, match, output)
@@ -564,28 +609,38 @@ class Device_cisco_hp(object):
                                                 self.logging("--  COMMAND OUTPUT: (" + clear_output.replace('\n','') + ")")
                         return clear_output
 
+
+
         def command_sequence(self,cmd_list,time_between=2,timeout_prompt=300):
-                self.__command_counter += 1
+                if self.__state == "connected":
 
-                self.logging("--- execute command (Prompt: " + self.__current_prompt + "): " + str(cmd_list))
+                        if self.__demo_config_mode and self.__current_prompt == "CONFIG":
+                                self.logging("--- DEMO_CONFIG_MODE command sequence (Prompt: " + self.__current_prompt + "): " + str(cmd_list))
+                                self.__command_counter += 1
+                                clear_output = "OUTPUT: DEMO_CONFIG_MODE"
 
-                for cmd in cmd_list:
-                        self.logging("--- execute command sequence        : " + cmd)
-                        self.__send_cmd(cmd + "\n")
-                        time.sleep(time_between)
+                        else:
+             
+               			self.logging("--- execute command (Prompt: " + self.__current_prompt + "): " + str(cmd_list))
+				self.__command_counter += 1
 
-                prompt_list = [self.__get_userprompt(), self.__get_configprompt(), self.__get_privprompt()]
-                (index, match, output) = self.__expect(prompt_list,timeout_prompt)
-                output_all = output
-                (index, match, output) = self.__expect(prompt_list,2)
-                output_all += output
-                (index, match, output) = self.__expect(prompt_list,2)
-                output_all += output
+                		for cmd in cmd_list:
+                        		self.logging("--- execute command sequence        : " + cmd)
+                        		self.__send_cmd(cmd + "\n")
+                        		time.sleep(time_between)
 
-                clear_output = self.__vt100_cleaner(output_all)
-                clear_output = re.sub(r'' + self.__get_userprompt(),'',clear_output)
-                clear_output = re.sub(r'' + self.__get_privprompt(),'',clear_output)
-                clear_output = re.sub(r'' + self.__get_configprompt(),'',clear_output)
+                		prompt_list = [self.__get_userprompt(), self.__get_configprompt(), self.__get_privprompt()]
+                		(index, match, output) = self.__expect(prompt_list,timeout_prompt)
+                		output_all = output
+                		(index, match, output) = self.__expect(prompt_list,2)
+                		output_all += output
+                		(index, match, output) = self.__expect(prompt_list,2)
+                		output_all += output
+
+                		clear_output = self.__vt100_cleaner(output_all)
+                		clear_output = re.sub(r'' + self.__get_userprompt(),'',clear_output)
+                		clear_output = re.sub(r'' + self.__get_privprompt(),'',clear_output)
+                		clear_output = re.sub(r'' + self.__get_configprompt(),'',clear_output)
 
                 return clear_output
 
@@ -595,20 +650,27 @@ class Device_cisco_hp(object):
         def disconnect(self):
                 if self.__state == "connected":
 
-
                         processing_time = datetime.datetime.now() - self.__connection_time_beginn
                         self.logging("--- end connection: " + str(datetime.datetime.now()) + " (processing time: " + str(processing_time) + ")" )
 
                         if self.get_port() == 22 and self.__ssh_conn != None:
+				try:
+                                	self.__ssh_conn.close()
+                                	self.__ssh_client.close()
+				except:
+					self.logging("INFO: failure while closing SSH socket")
 
-                                self.logging("--- disconnect - ip: " + self.get_ip())
-                                self.__ssh_conn.close()
-                                self.__ssh_client.close()
+				self.logging("--- disconnect (ssh) - ip: " + self.get_ip())
 
-                        elif self.get_port() == 23 and self.__telnet_conn != None:
-                                self.__send_cmd("logout\ny\nn\n")
-                                self.logging("--- disconnect - ip: " + self.get_ip())
-                                self.__telnet_conn.close()
+                        elif self.get_port() == 23 and self.__telnet_conn != None: 
+                             
+				try:
+					self.__send_cmd("logout\ny\nn\n")
+                                	self.__telnet_conn.close()
+				except:
+					self.logging("INFO: failure while closing telnet socket")
+
+				self.logging("--- disconnect (telnet) - ip: " + self.get_ip())
                         else:
                                 self.logging("--- device dont't support ssh or telnet - ip: " + self.get_ip())
                 self.__state = "disconnected"

@@ -25,7 +25,7 @@
 # Boston, MA 02110-1301 USA.
 
 #Test Inventory
-#cmk -II --checks=snmp_duplex 
+#cmk -II --checks=snmp_duplex asw0038
 
 def inventory_duplex_status(info):
      	
@@ -33,7 +33,7 @@ def inventory_duplex_status(info):
 
 
 #Test check
-# cmk  --debug -vn --checks=snmp_duplex 
+# cmk  --debug -vn --checks=snmp_duplex asw0038
 def check_duplex_status(item, params, info):
 
 	if_halfduplex = []
