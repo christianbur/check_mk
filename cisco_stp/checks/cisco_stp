@@ -155,7 +155,7 @@ def parse_cisco_stp(info):
 
 	#all_stp_vlans = STP_SNMP(ip_address, snmp_credentials).get_all_stp_vlans()
 	
-	(if_info, dot1dStp_info) = info
+	(if_info, dot1dStp_1_info, dot1dStp_2_info) = info
 
  	dot1dStp_dict = {
 			1 : "dot1dStpProtocolSpecification",
@@ -171,9 +171,9 @@ def parse_cisco_stp(info):
 
 	stp_dict = {}
 	
-	for i in range(len(dot1dStp_info[0])):
+	for i in range(len(dot1dStp_2_info[0])):
 		key = dot1dStp_dict[i+1] 
-		value = dot1dStp_info[0][i]
+		value = dot1dStp_2_info[0][i]
 
 		if key == "dot1dStpDesignatedRoot":
 			bridgeID = "".join ([ "%02X" % ord( x ) for x in list(value)])
@@ -190,13 +190,13 @@ def parse_cisco_stp(info):
 	
 			timeticks_string = ""
                 	d, m = divmod(timeticks, 8640000)
-                	timeticks_string += '%d days ' % d
+                	timeticks_string += '%dD/' % d
                 	d, m = divmod(m, 360000)
-                	timeticks_string += '%d:' % d
+                	timeticks_string += '%dH/' % d
                	 	d, m = divmod(m, 6000)
-                	timeticks_string += '%d:' % d
+                	timeticks_string += '%dM/' % d
                 	d, m = divmod(m, 100)
-                	timeticks_string += '%d.%d' % (d, m)
+                	timeticks_string += '%dS' % d
 
 			stp_dict.update( { "dot1dStpTimeSinceTopologyChange_string" : timeticks_string } )	
 
@@ -204,17 +204,31 @@ def parse_cisco_stp(info):
 		stp_dict.update( { key : value } )
 	
 
-	parsed = (if_info, { "default" : stp_dict} ) 
+	bridgeID_hex = "".join ([ "%02X" % ord( x ) for x in list(dot1dStp_1_info[0][0])])
+	bridgeID = "%s%s:%s%s:%s%s:%s%s:%s%s:%s%s" % (tuple(list(bridgeID_hex)))
 
-        return parsed
+
+	if  str(stp_dict["dot1dStpProtocolSpecification"]) == "3":
+		return (if_info, { "ieee8021d" : stp_dict} , bridgeID) 
+	elif str(stp_dict["dot1dStpProtocolSpecification"]) == "2":
+		return (if_info, { "decLb100" : stp_dict} , bridgeID)
+	elif str(stp_dict["dot1dStpProtocolSpecification"]) == "1":
+		#Neuer STP Versionen
+		return (if_info, { "unknown" : stp_dict} , bridgeID)
+	else:
+		return None
+
 
 
 
 def inventory_cisco_stp(parsed):
 
-	(if_info, all_vlans_stp_dict) = parsed
+	(if_info, all_vlans_stp_dict, bridgeID) = parsed
 
 	inventory = []
+	inventory.append( ("general", None) )
+
+
 	for vlan in all_vlans_stp_dict:
 		inventory.append( (vlan, None) )
 			
@@ -224,13 +238,26 @@ def inventory_cisco_stp(parsed):
 
 def check_cisco_stp(item, params, parsed):
 
-	(if_info, all_vlans_stp_dict) = parsed
+	(if_info, all_vlans_stp_dict, bridgeID) = parsed
 
-	if item in all_vlans_stp_dict:
+	if item == "general":
+		msg = "BridgeID: " + bridgeID
+
+		return 0, msg
+
+	elif item in all_vlans_stp_dict:
 		msg = ""
-		msg += "RootID: (" + str(all_vlans_stp_dict[item]["dot1dStpDesignatedRoot_Priority"]) + ", " + all_vlans_stp_dict[item]["dot1dStpDesignatedRoot_Address"] + ")"
-		msg += " - " 
-		msg += "LastChange: " + all_vlans_stp_dict[item]["dot1dStpTimeSinceTopologyChange_string"]
+		msg += "BridgeID: " + all_vlans_stp_dict[item]["dot1dStpPriority"] 
+		msg += " - "
+                msg += "RootBridgeID: (" + str(all_vlans_stp_dict[item]["dot1dStpDesignatedRoot_Priority"]) + "-" + all_vlans_stp_dict[item]["dot1dStpDesignatedRoot_Address"] + ")"
+                msg += " - " 
+		msg += "RootPort: " + all_vlans_stp_dict[item]["dot1dStpRootCost"]
+		msg += " - "
+                msg += "RootPathCost: " + all_vlans_stp_dict[item]["dot1dStpRootCost"]
+                msg += " - "
+                msg += "TopChange: " + all_vlans_stp_dict[item]["dot1dStpTopChanges"]
+                msg += " - "
+		msg += "TopLastChange: " + all_vlans_stp_dict[item]["dot1dStpTimeSinceTopologyChange_string"]
 
 		return 0, msg
 	
@@ -245,6 +272,7 @@ check_info["cisco_stp"] = {
     'service_description'       : "STP %s",
 #    'has_perfdata'              : True,
     'snmp_info'                 : [(".1.3.6.1.2.1", if64_snmp_end_oids),
+				   (".1.3.6.1.2.1.17.1", [ "1"]),
 				   (".1.3.6.1.2.1.17.2", [ "1","2","3","4","5", "6", "7", "8", "9"]),
                                   ],
     'snmp_scan_function'        : lambda oid: if64_scan_function(oid, False),
