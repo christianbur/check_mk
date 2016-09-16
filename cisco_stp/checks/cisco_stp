@@ -26,70 +26,103 @@
 
 # Author: Christian Burmeister
 
+
+oid_dot1dStp_2 = (".1.3.6.1.2.1.17.2", ["1","2","3","4","5", "6", "7", "8", "9","15.1.3"])
+
+dot1dStp_2_dict = {
+                        "1": "dot1dStpProtocolSpecification",
+                        "2": "dot1dStpPriority",
+                        "3": "dot1dStpTimeSinceTopologyChange",
+                        "4": "dot1dStpTopChanges",
+                        "5": "dot1dStpDesignatedRoot",
+                        "6": "dot1dStpRootCost",
+                        "7": "dot1dStpRootPort",
+                        "8": "dot1dStpMaxAge",
+                        "9": "dot1dStpHelloTime",
+                        "15.1.3": "dot1dStpPortState",
+}
+
+
+
 class STP_SNMP(object):
         # http://www.cisco.com/c/en/us/support/docs/ip/simple-network-management-protocol-snmp/44800-mactoport44800.html
 
-        def __init__(self, ip_address, snmp_credentials):
+        def __init__(self, ip_address, snmp_credentials, ifIndex, vlans):
             self.__ip_address      = ip_address
             self.__snmp_credentials  = snmp_credentials
-	    self.__all_vlans       = []
 
-        def __get_oid(self, oid, index = ""):
+            self.__all_vlans       = []
+            for key, value in vlans:
+                vlans_ignore = ["1002","1003", "1004", "1005"]
+                vlan = key[2:]
+                if vlan not in vlans_ignore:
+                        self.__all_vlans.append( key[2:] )
+            
 
-	    if index != "":
-		context_v2 = "@" + index
-		context_v3 = "vlan-" + index
-	    else:
-		context_v2 = ""
-		context_v3 = ""
+            self.__if_index     = {}
+            for interface in ifIndex:
+                self.__if_index.update({interface[0]:interface[1]}  )
 
 
-	    version = 1
-	    timeout = timeout = int(1 * 1000000) # default: 1 second
-	    retries = 3	
- 	    if type(self.__snmp_credentials) in (str, unicode):
-		version = 2
-    	    else:
-        	version = 3
-        	if len(self.__snmp_credentials) == 6:
-            		sec_level, auth_proto, sec_name, auth_pass, priv_proto, priv_pass = self.__snmp_credentials
-        	elif len(self.__snmp_credentials) == 4:
-            		sec_level, auth_proto, sec_name, auth_pass = self.__snmp_credentials
-            		priv_proto = 'DEFAULT'
-            		priv_pass  = ''
-        	else:
-            		raise MKGeneralException("Invalid SNMP credentials '%r' for ip %s: "
+        def __init_snmp_session(self, index = ""):
+
+            if index != "":
+                context_v2 = "@" + index
+                context_v3 = "vlan-" + index
+            else:
+                context_v2 = ""
+                context_v3 = ""
+
+
+            version = 1
+            timeout = timeout = int(1 * 1000000) # default: 1 second
+            retries = 3
+            if type(self.__snmp_credentials) in (str, unicode):
+                version = 2
+            else:
+                version = 3
+                if len(self.__snmp_credentials) == 6:
+                        sec_level, auth_proto, sec_name, auth_pass, priv_proto, priv_pass = self.__snmp_credentials
+                elif len(self.__snmp_credentials) == 4:
+                        sec_level, auth_proto, sec_name, auth_pass = self.__snmp_credentials
+                        priv_proto = 'DEFAULT'
+                        priv_pass  = ''
+                else:
+                        raise MKGeneralException("Invalid SNMP credentials '%r' for ip %s: "
                               "must be string, 4-tuple or 6-tuple" % (self.__snmp_credentials, self.__ip_address))
 
-		
 
 
-    	    if version != 3:
-		print self.__ip_address, self.__snmp_credentials + context_v2, oid
-        	session = netsnmp.Session(Version = version, DestHost = self.__ip_address,
-            		Timeout    = timeout,
-            		Retries    = retries,
-            		Community  = self.__snmp_credentials + context_v2,
-        	)
-      	    else:
-        	session = netsnmp.Session(Version = version, DestHost = self.__ip_address,
-            		Timeout   = timeout,
-            		Retries   = retries,
-            		SecLevel  = sec_level,
-            		AuthProto = auth_proto.upper(),
-            		AuthPass  = auth_pass,
-            		SecName   = sec_name,
-            		PrivProto = priv_proto.upper(),
-            		PrivPass  = priv_pass,
-            		Context   = context_v3,
-        	)
+
+            if version != 3:
+                session = netsnmp.Session(Version = version, DestHost = self.__ip_address,
+                        Timeout    = timeout,
+                        Retries    = retries,
+                        Community  = self.__snmp_credentials + context_v2,
+                )
+            else:
+                session = netsnmp.Session(Version = version, DestHost = self.__ip_address,
+                        Timeout   = timeout,
+                        Retries   = retries,
+                        SecLevel  = sec_level,
+                        AuthProto = auth_proto.upper(),
+                        AuthPass  = auth_pass,
+                        SecName   = sec_name,
+                        PrivProto = priv_proto.upper(),
+                        PrivPass  = priv_pass,
+                        Context   = context_v3,
+                )
 
 
             session.UseLongNames = 1
             session.UseNumeric = 1
             session.Retries=2
 
-	    oid_varlist = netsnmp.VarList(netsnmp.Varbind(oid))
+            return session
+
+        def __get_oid(self, session, oid):
+
+            oid_varlist = netsnmp.VarList(netsnmp.Varbind(oid))
 
             res = session.walk(oid_varlist)
 
@@ -106,170 +139,264 @@ class STP_SNMP(object):
 
             return result_dict
 
-        def __get_vlans(self):
-            oid_vtpVlanState = '.1.3.6.1.4.1.9.9.46.1.3.1.1.2'
-            vtpVlanState_dict = self.__get_oid(oid_vtpVlanState)
+
+        def __get_stpPortName(self, snmp_session, vlan, index):
+                oid_dot1dBasePortIfIndex = ".1.3.6.1.2.1.17.1.4.1.2"
+                ifIndex = self.__get_oid(snmp_session, oid_dot1dBasePortIfIndex).get(index)
+
+                return str(self.__if_index.get(ifIndex))
 
 
-            for oid in vtpVlanState_dict:
-                vlan = oid.replace("1.", "")
-                self.__all_vlans.append(vlan)
+        def decode_dot1dStpPortState(self, snmp_session, vlan, portState_dict):
+
+                decode_dot1dStpPortState_dict = {"1":"disabled", "2":"blocking", "3":"listening", "4":"learning", "5":"forwarding", "6":"broken"}
+
+                dot1dStpPortState_dict = {}
+                for key, value in portState_dict.iteritems():
+                        if decode_dot1dStpPortState_dict[value] not in dot1dStpPortState_dict:
+                                dot1dStpPortState_dict[decode_dot1dStpPortState_dict[value]] = []
+                        if decode_dot1dStpPortState_dict[value] != "forwarding":
+                                port_name =  self.__get_stpPortName(snmp_session, vlan, key)
+                                dot1dStpPortState_dict[decode_dot1dStpPortState_dict[value]].append(port_name)
+                        else:
+                                dot1dStpPortState_dict[decode_dot1dStpPortState_dict[value]].append(int(key))
+
+                return dot1dStpPortState_dict
 
 
-	def get_stp_vlan(self, vlan):
-	
-		dot1dStp_base = ".1.3.6.1.2.1.17.2."
+        def decode_timeticks(self,value):
+                timeticks = saveint(value)
 
-        	dot1dStp_dict = {
-                        1 : "dot1dStpProtocolSpecification",
-                        2 : "dot1dStpPriority",
-                        3 : "dot1dStpTimeSinceTopologyChange",
-                        4 : "dot1dStpTopChanges",
-                        5 : "dot1dStpDesignatedRoot",
-                        6 : "dot1dStpRootCost",
-                        7 : "dot1dStpRootPort",
-        	}
+                timeticks_string = ""
+                d, m = divmod(timeticks, 8640000)
+                timeticks_string += '%dD/' % d
+                d, m = divmod(m, 360000)
+                timeticks_string += '%dH/' % d
+                d, m = divmod(m, 6000)
+                timeticks_string += '%dM/' % d
+                d, m = divmod(m, 100)
+                timeticks_string += '%dS' % d
 
-		for key, value in dot1dStp_dict.items():
+                return timeticks_string
 
-			if vlan == None:
-				print self.__get_oid(dot1dStp_base + str(key))
-	
 
-	def get_all_stp_vlans(self):
-		self.__get_vlans()
-		
-		self.get_stp_vlan(None)
+        def get_stp_vlan(self,snmp_session, vlan):
 
-		
+                stp_dict = {}
+
+                (oid_base, oid_list) = oid_dot1dStp_2
+
+                for oid_end in oid_list:
+                        key = dot1dStp_2_dict.get(oid_end)
+                        value = self.__get_oid(snmp_session, oid_base + "." + oid_end).get("0")
+
+                        if key == "dot1dStpPriority":
+                                value = self.__get_oid(snmp_session, oid_base + "." + oid_end).get("0")
+                                if value != None:
+                                        value = value + " (" + str(int(value) - int(vlan)) + "+" +  vlan + ")"
+                        elif key == "dot1dStpTimeSinceTopologyChange":
+                                value = self.__get_oid(snmp_session, oid_base + "." + oid_end).get("0")
+                                stp_dict.update( { "dot1dStpTimeSinceTopologyChange_raw" :  value } )
+                                if value != None:
+                                        value = self.decode_timeticks(value)
+                        elif key == "dot1dStpDesignatedRoot":
+                                value = self.__get_oid(snmp_session, oid_base + "." + oid_end).get("0")
+                                if value != None:
+                                        (RootBridgePriority, RootBridgeAddress) = decode_bridgePriorityAddress(value)
+                                        value = str(RootBridgePriority) + "-" + RootBridgeAddress
+                                        stp_dict.update( { "dot1dStpDesignatedRoot_RootBridgePriority" : RootBridgePriority } )
+                                        stp_dict.update( { "dot1dStpDesignatedRoot_RootBridgeAddress" : RootBridgeAddress } )
+                                else:
+                                        value = "(?)unkown(?)"
+                                        stp_dict.update( { "dot1dStpDesignatedRoot_RootBridgePriority" : 999999999999 } )
+                                        stp_dict.update( { "dot1dStpDesignatedRoot_RootBridgeAddress" : value } )
+                        elif key == "dot1dStpRootPort" and value != "0":
+                                value = self.__get_oid(snmp_session, oid_base + "." + oid_end).get("0")
+                                value = self.__get_stpPortName(snmp_session, vlan, value)
+                        elif key == "dot1dStpPortState":
+                                value = self.__get_oid(snmp_session, oid_base + "." + oid_end)
+                                value = self.decode_dot1dStpPortState(snmp_session, vlan, value)
+                        else:
+                                value = self.__get_oid(snmp_session, oid_base + "." + oid_end).get("0")
+
+                        stp_dict.update( { key : value } )
+
+
+                return stp_dict
+
+
+
+        def get_all_stp_vlans(self):
+                stp_all_vlans_dict = {}
+                stp_tpye = ""
+
+                for vlan in self.__all_vlans:
+                        snmp_session = self.__init_snmp_session(vlan)
+
+                        if vlan == self.__all_vlans[0]: 
+                                stp_tpye = self.get_stp_tpye(snmp_session)
+
+                        stp_dict = self.get_stp_vlan(snmp_session, vlan)
+                        stp_all_vlans_dict.update( { "VLAN " + str(vlan) : stp_dict} )
+
+                return (stp_all_vlans_dict, stp_tpye)
+
+        def get_stp_tpye(self, snmp_session):
+                oid_stpxSpanningTreeType = ".1.3.6.1.4.1.9.9.82.1.6.1"
+                stpxSpanningTreeType_dict = {"1":"pvstPlus", "2":"mistp", "3":"mistpPvstPlus", "4":"mst", "5":"rapidPvstPlus"}
+                stpxSpanningTreeType = self.__get_oid(snmp_session, oid_stpxSpanningTreeType).get("0")
+                if stpxSpanningTreeType == None:
+                        return "unknown"
+                else:
+                        return stpxSpanningTreeType_dict[stpxSpanningTreeType]
+
 
 
 def decode_bridgePriorityAddress(value):
-	bridgeID = "".join ([ "%02X" % ord( x ) for x in list(value)])
+        bridgeID = "".join ([ "%02X" % ord( x ) for x in list(value)])
 
+        bridePrioirty   = "(?)unknown(?)"
+        bridgeAddress   = "(?)unknown(?)"
 
-	bridePrioirty	= None
-	bridgeAddress 	= None
+        if len(bridgeID) == 16:
+                bridePriority_hex      = bridgeID[:4]
+                bridePrioirty          = int("0x" + bridePriority_hex.lower(), 0)
+                bridgeAddress_hex      = bridgeID[4:].upper()
+                bridgeAddress          = "%s%s:%s%s:%s%s:%s%s:%s%s:%s%s" % (tuple(list(bridgeAddress_hex)))
 
-	if len(bridgeID) == 16:
-        	bridePriority_hex      = bridgeID[:4]
-     		bridePrioirty          = int("0x" + bridePriority_hex.lower(), 0)
-        	bridgeAddress_hex      = bridgeID[4:].upper()
-        	bridgeAddress          = "%s%s:%s%s:%s%s:%s%s:%s%s:%s%s" % (tuple(list(bridgeAddress_hex)))
-
-	elif len(bridgeID) == 12:
-		bridgeAddress_hex      = bridgeID.upper()
+        elif len(bridgeID) == 12:
+                bridgeAddress_hex      = bridgeID.upper()
                 bridgeAddress          = "%s%s:%s%s:%s%s:%s%s:%s%s:%s%s" % (tuple(list(bridgeAddress_hex)))
 
 
-	return (bridePrioirty, bridgeAddress)
+        return (bridePrioirty, bridgeAddress)
 
-def decode_timeticks(value):
-	timeticks = saveint(value)
 
-      	timeticks_string = ""
-     	d, m = divmod(timeticks, 8640000)
-      	timeticks_string += '%dD/' % d
-       	d, m = divmod(m, 360000)
-       	timeticks_string += '%dH/' % d
-       	d, m = divmod(m, 6000)
-       	timeticks_string += '%dM/' % d
-     	d, m = divmod(m, 100)
-      	timeticks_string += '%dS' % d
 
-	return timeticks_string 
 
 def parse_cisco_stp(info):
-	(if_info, dot1dStp_1_info, dot1dStp_2_info) = info
-
- 	dot1dStp_dict = {
-			1 : "dot1dStpProtocolSpecification",
-			2 : "dot1dStpPriority",
-			3 : "dot1dStpTimeSinceTopologyChange",
-			4 : "dot1dStpTopChanges",
-			5 : "dot1dStpDesignatedRoot",
-			6 : "dot1dStpRootCost",
-                        7 : "dot1dStpRootPort",
-                        8 : "dot1dStpMaxAge",
-                        9 : "dot1dStpHelloTime",
-	}
-
-	stp_dict = {}
-	
-	for i in range(len(dot1dStp_2_info[0])):
-		key = dot1dStp_dict[i+1] 
-		value = dot1dStp_2_info[0][i]
-
-		if key == "dot1dStpDesignatedRoot":
-			(bridgePriority, bridgeAddress) = decode_bridgePriorityAddress(value)
-			value = str(bridgePriority) + "-" + bridgeAddress
-		elif key == "dot1dStpTimeSinceTopologyChange":
-			value = decode_timeticks(value)
-	
-		stp_dict.update( { key : value } )
-	
-	
-	
-	(bridgePriority, bridgeAddress) = decode_bridgePriorityAddress(dot1dStp_1_info[0][0])
+        (ifIndex, dot1dStp_1_info, dot1dStp_2_info, vlans) = info
 
 
-	dot1dStpProtocolSpecification_dict = { "1":"unknown", "2":"decLb100", "3":"ieee8021d" } 
+        (bridgePriority, bridgeAddress) = decode_bridgePriorityAddress(dot1dStp_1_info[0][0])
 
-	stp_general = (bridgeAddress, dot1dStpProtocolSpecification_dict[stp_dict["dot1dStpProtocolSpecification"]])
+        dot1dStpProtocolSpecification_dict = { "1":"unknown", "2":"decLb100", "3":"ieee8021d" } 
+        try:
+                dot1dStpProtocolSpecification = dot1dStpProtocolSpecification_dict[dot1dStp_2_info[0][0]]
+        except:
+                dot1dStpProtocolSpecification = "unknown"
 
-	if  dot1dStpProtocolSpecification_dict[stp_dict["dot1dStpProtocolSpecification"]] == "ieee8021d":
-		return (if_info, { "VLAN ALL" : stp_dict} , stp_general) 
-	elif dot1dStpProtocolSpecification_dict[stp_dict["dot1dStpProtocolSpecification"]] == "decLb100":
-		return (if_info, { "VLAN ALL" : stp_dict} , stp_general)
-	elif dot1dStpProtocolSpecification_dict[stp_dict["dot1dStpProtocolSpecification"]] == "unknown":
-		ip_address = lookup_ip_address(g_hostname)
-        	snmp_credentials = snmp_credentials_of(g_hostname)
-        	stp_vlan_dict = STP_SNMP(ip_address, snmp_credentials).get_all_stp_vlans()
 
-		return (if_info, stp_vlan_dict , stp_general)
-	else:
-		return None
+        if  dot1dStpProtocolSpecification == "ieee8021d" or dot1dStpProtocolSpecification == "decLb100":
+                # muss noch angepasst werden
+                return (if_info, { "VLAN ALL" : stp_dict} , (bridgeAddress, dot1dStpProtocolSpecification))
+ 
+        elif dot1dStpProtocolSpecification == "unknown":
+                ip_address = lookup_ip_address(g_hostname)
+                snmp_credentials = snmp_credentials_of(g_hostname)
+                stp_snmp = STP_SNMP(ip_address, snmp_credentials, ifIndex, vlans)
+                (stp_all_vlans_dict, stp_tpye) = stp_snmp.get_all_stp_vlans()
+
+                return (stp_all_vlans_dict , (bridgeAddress, stp_tpye))
+        else:
+                return None
 
 
 
 
 def inventory_cisco_stp(parsed):
 
-	(if_info, stp_vlan_dict, stp_general) = parsed
+        (stp_vlan_dict, stp_general) = parsed
 
-	inventory = []
-	inventory.append( ("general", None) )
+        inventory = []
+        inventory.append( ("general", None) )
 
 
-	for vlan in stp_vlan_dict:
-		inventory.append( (vlan, None) )
-			
+        for vlan in stp_vlan_dict:
+                rootBridgeID = stp_vlan_dict[vlan]["dot1dStpDesignatedRoot"]
+                priority     = stp_vlan_dict[vlan]["dot1dStpPriority"]
+                blockedSTPPorts = sorted(stp_vlan_dict[vlan]["dot1dStpPortState"].get("blocking","None"))
 
-	return inventory
+                inventory.append( (vlan, (rootBridgeID, priority, blockedSTPPorts)) )
+
+        return inventory
 
 
 def check_cisco_stp(item, params, parsed):
 
-	(if_info, stp_vlan_dict, stp_general) = parsed
 
-	if item == "general":
-		msg = "BridgeAddress: %s, Protocol: %s" % stp_general
+        vlan = item
+        (stp_vlan_dict, stp_general) = parsed
+        bridgeAddress = stp_general[0]
+        stpxSpanningTreeType = stp_general[1]
 
-		return 0, msg
 
-	elif item in stp_vlan_dict:
-		msg = []
-		msg.append( "Priority: %s"     % stp_vlan_dict[item]["dot1dStpPriority"] )
-                msg.append( "RootBridgeID: %s" % stp_vlan_dict[item]["dot1dStpDesignatedRoot"] )
-		msg.append( "RootPort: %s"     % stp_vlan_dict[item]["dot1dStpRootPort"] )
-                msg.append( "RootPathCost: %s" % stp_vlan_dict[item]["dot1dStpRootCost"] )
-                msg.append( "TopChange: %s"    % stp_vlan_dict[item]["dot1dStpTopChanges"] )
-		msg.append( "TopLastChange: %s" % stp_vlan_dict[item]["dot1dStpTimeSinceTopologyChange"] )
+        if item == "general":
+                msg = "BridgeAddress: %s, Protocol: %s" % (bridgeAddress, stpxSpanningTreeType)
 
-		return 0, ", ".join(msg)
-	
-	else:	
-		return 3, "STP data not found"
+                return_status = 0
+                if "unknown" in bridgeAddress:
+                        return_status = 1
+
+                return return_status, msg
+
+        elif vlan in stp_vlan_dict:
+
+                msg = []
+                msg.append( "Priority: %s"     % stp_vlan_dict[vlan]["dot1dStpPriority"] )
+                msg.append( "RootBridgeID: %s" % stp_vlan_dict[vlan]["dot1dStpDesignatedRoot"] )
+                msg.append( "RootPort: %s"     % stp_vlan_dict[vlan]["dot1dStpRootPort"] )
+                msg.append( "RootPathCost: %s" % stp_vlan_dict[vlan]["dot1dStpRootCost"] )
+                msg.append( "TopChange: %s"    % stp_vlan_dict[vlan]["dot1dStpTopChanges"] )
+                msg.append( "TopLastChange: %s" % stp_vlan_dict[vlan]["dot1dStpTimeSinceTopologyChange"] )
+
+                PortState_msg_list = []
+                for key in stp_vlan_dict[vlan]["dot1dStpPortState"].keys():
+                        if key == "forwarding":
+                                PortState_msg_list.append( key + ": " + str(len(stp_vlan_dict[vlan]["dot1dStpPortState"][key])) + "x")
+                        else:
+                                PortState_msg_list.append( key + ": " + str(stp_vlan_dict[vlan]["dot1dStpPortState"][key]))
+
+                msg.append( "PortState: %s" % ", ".join(PortState_msg_list) )
+
+
+                return_status = 0
+                (old_rootBridgeID, old_priority, old_blockedSTPPorts) = params
+
+                if old_priority != stp_vlan_dict[vlan]["dot1dStpPriority"]:
+                        return_status = 1
+                        msg.append( "(!) Priority changed (old: %s) (!)" % old_rootBridgeID )
+                if old_rootBridgeID != stp_vlan_dict[vlan]["dot1dStpDesignatedRoot"]:
+                        return_status = 1
+                        msg.append( "(!) RootBridgeID changed (old: %s) (!)" % old_rootBridgeID  )
+                if old_blockedSTPPorts != sorted(stp_vlan_dict[vlan]["dot1dStpPortState"].get("blocking","None")):
+                        return_status = 1
+                        msg.append( "(!) PortState_blocking changed (old: %s) (!)" % old_blockedSTPPorts  )
+
+                if stp_vlan_dict[vlan]["dot1dStpRootPort"] == "0" and stp_vlan_dict[vlan]["dot1dStpRootCost"] == "0":
+                        msg.append( "(!)is RootBridge for this VLAN(!)" )
+
+                if stp_vlan_dict[vlan]["dot1dStpDesignatedRoot"] == "0-00:00:00:00:00:00":
+                         return_status = 1
+                         msg.append( "(!)RootBridgeID unknown(!)" )
+
+
+                default_switch_stp_priotiry = 32768
+                print "---", stp_vlan_dict[vlan]["dot1dStpDesignatedRoot_RootBridgePriority"]
+                if int(stp_vlan_dict[vlan]["dot1dStpDesignatedRoot_RootBridgePriority"]) >= default_switch_stp_priotiry:
+                        return_status = 1
+                        if stp_vlan_dict[vlan]["dot1dStpDesignatedRoot_RootBridgePriority"] == 999999999999:
+                                msg.append( "(!) STP Instance unknown (!)" )
+                        else:
+                                msg.append( "(!) RootBridgePriortiy is default (%s) (!)" % default_switch_stp_priotiry  )
+
+
+                perfdata = [ ( "dot1dStpTimeSinceTopologyChange_raw", stp_vlan_dict[vlan]["dot1dStpTimeSinceTopologyChange_raw"] ) ]
+
+                return return_status, ", ".join(msg), perfdata
+
+        else:
+                return 3, "STP data not found"
 
 
 check_info["cisco_stp"] = {
@@ -277,10 +404,11 @@ check_info["cisco_stp"] = {
     'inventory_function'        : inventory_cisco_stp,
     'parse_function'            : parse_cisco_stp,
     'service_description'       : "STP %s",
-#    'has_perfdata'              : True,
-    'snmp_info'                 : [(".1.3.6.1.2.1", if64_snmp_end_oids),
-				   (".1.3.6.1.2.1.17.1", [ "1"]),
-				   (".1.3.6.1.2.1.17.2", [ "1","2","3","4","5", "6", "7", "8", "9"]),
+    'has_perfdata'              : True,
+    'snmp_info'                 :[ (".1.3.6.1.2.1.2.2.1", [ "1", "2"]), 
+                                   (".1.3.6.1.2.1.17.1", [ "1"]),
+                                   (".1.3.6.1.2.1.17.2", ["1"]),
+                                   (".1.3.6.1.4.1.9.9.46.1.3.1.1", [OID_END,"2"]),
                                   ],
     'snmp_scan_function'        : lambda oid: if64_scan_function(oid, False),
 #    'group'                     : 'if',
