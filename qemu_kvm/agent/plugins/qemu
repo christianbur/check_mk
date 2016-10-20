@@ -22,7 +22,7 @@ if which qm >/dev/null ; then
                 NAME=$(echo $L | awk '{print $2}')
                 STATE=$(echo $L | awk '{print $3}')
                 PID=$(ps aux | grep kvm | grep $NAME | awk '{print $2}')
-                if [[ $L == "*.*" ]] && [ "$PID" -gt "0" ]; then
+                if [[ $L == *.* ]] && [ "$PID" -gt "0" ]; then
                         MEM=$(ps aux | grep kvm | grep $PID | head -1|awk -- '{print $5}')
                         MEM=$(echo $MEM / 1024 | bc)
                         DATA=$(top -p $PID -n 1 -b | tail -1)
