@@ -26,8 +26,8 @@ if which qm >/dev/null ; then
                         MEM=$(ps aux | grep kvm | grep $PID | head -1|awk -- '{print $5}')
                         MEM=$(echo $MEM / 1024 | bc)
                         DATA=$(top -p $PID -n 1 -b | tail -1)
-                        PCPU=$(echo $DATA | awk -- '{print $9}')
-                        PMEM=$(echo $DATA | awk -- '{print $10}')
+                        PCPU=$(echo $DATA | awk -- '{print $9}'|tr , .)
+                        PMEM=$(echo $DATA | awk -- '{print $10}'|tr , .)
                 else
                         DATA=""
                 fi
