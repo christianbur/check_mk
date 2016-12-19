@@ -44,4 +44,4 @@ check_info['qnap_info'] = (check_qnap_info, "QNAP Info", 0, inventory_qnap_info)
 
 snmp_info['qnap_info'] = ( ".1.3.6.1", [ "2.1.1.1.0", "2.1.47.1.1.1.1.11.1", "2.1.25.1.1.0" ] )
 snmp_scan_functions['qnap_info'] = \
-    lambda oid: "QNAP Systems" in oid('.1.3.6.1.2.1.47.1.1.1.1.12.1')
+    lambda oid: oid('.1.3.6.1.2.1.47.1.1.1.1.12.1') and "QNAP Systems" in oid('.1.3.6.1.2.1.47.1.1.1.1.12.1')
