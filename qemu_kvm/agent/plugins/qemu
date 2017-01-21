@@ -11,7 +11,7 @@
 # updated by
 # Christian Burmeister 05/2015
 # updated by
-# adorfer 08/2016 for proxmox 4 pve
+# adorfer 01/2017 for proxmox 4 pve
 
 if which qm >/dev/null ; then
         echo '<<<qemu>>>'
@@ -23,15 +23,18 @@ if which qm >/dev/null ; then
                         STATE=$(echo $L | awk '{print $3}')
                         PID=$(ps aux | grep kvm | grep $NAME | head -1 | tail -1| awk '{print $2}')
                         if [[ ! -z $PID ]] && [ "$PID" -gt "0" ]; then
-                                MEM=$(ps aux | grep kvm | grep $PID | head -1|tail -1|awk -- '{print $5}')
+                                PS=$(ps aux | grep kvm | grep $PID | head -1|tail -1)
+                                MEM=$(echo $PS|awk -- '{print $5}')
                                 MEM=$(echo $MEM / 1024 | bc)
                                 DATA=$(top -p $PID -n 1 -b | tail -1)
                                 PCPU=$(echo $DATA | awk -- '{print $9}'|tr , .)
                                 PMEM=$(echo $DATA | awk -- '{print $10}'|tr , .)
+                                MCPU=$(echo $PS | sed 's/.*maxcpus=\([^ ]*\)\ .*/\1/' )
+                                RCPU=$(echo "scale=1; $PCPU / $MCPU"| bc)
                         else
                                 DATA=""
                         fi
-                        echo $ID" "$NAME" "$STATE" "$MEM" "$PCPU" "$PMEM
+                        echo $ID" "$NAME" "$STATE" "$MEM" "$RCPU" "$PMEM
                 fi
         done
 fi
