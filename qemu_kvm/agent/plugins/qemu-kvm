@@ -9,9 +9,6 @@
 #
 # updated by
 # Christian Burmeister 05/2015
-#
-# HoangDH - 5:26PM 01/SEP/2017
-# Update: Define VMs's name for OpenStack via `virsh dumpxml` command
 
 if which virsh >/dev/null; then
 	echo '<<<qemu>>>'
@@ -29,7 +26,6 @@ if which virsh >/dev/null; then
 		else
 			DATA=""
 		fi
-		NAME=$(virsh dumpxml $NAME | grep -w "nova:name" | cut -d ">" -f 2 | cut -d "<" -f 1)
 		echo $ID" "$NAME" "$STATE" "$MEM" "$DATA
 	done
 fi
