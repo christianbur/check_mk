@@ -38,6 +38,8 @@ def inventory_qnap_fans(checkname, info):
     # Dieses statische Inventory sollte ueberarbeitet werden, mein Qnap hat aber leider keine Luefter zum testen.
     inventory.append(("Fan 1", "qnap_fans_default_levels")) 
     inventory.append(("Fan 2", "qnap_fans_default_levels"))
+    inventory.append(("Fan 3", "qnap_fans_default_levels"))
+    inventory.append(("Fan 4", "qnap_fans_default_levels"))
     return inventory    
 
 def check_qnap_fans(item, params, info):
@@ -48,6 +50,10 @@ def check_qnap_fans(item, params, info):
              rpm = info[0][0]
         elif item == "Fan 2":
              rpm = info[0][1]
+	elif item == "Fan 3":
+             rpm = info[0][2]
+        elif item == "Fan 4":
+             rpm = info[0][3]
         rpm = rpm.rstrip("RPM ")
         rpm = int(rpm)
         perfdata = [("rpm", rpm, warn, crit)]
@@ -63,6 +69,6 @@ def check_qnap_fans(item, params, info):
 
 check_info['qnap_fans'] = (check_qnap_fans, "QNAP %s", 1, inventory_qnap_fans)
 
-snmp_info['qnap_fans'] = ( ".1.3.6.1.4.1.24681.1.2.15.1.3", [ "1", "2" ] )
+snmp_info['qnap_fans'] = ( ".1.3.6.1.4.1.24681.1.2.15.1.3", [ "1", "2", "3", "4" ] )
 snmp_scan_functions['qnap_fans'] = \
     lambda oid: "QNAP Systems" in oid('.1.3.6.1.2.1.47.1.1.1.1.12.1')
