@@ -1,5 +1,5 @@
-#!/usr/bin/python
-# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#!/bin/bash
+#/usr/lib/check_mk_agent/plugins
 
 # based upon 'qemu' from
 # 12/2010 Matthias Henze
@@ -10,76 +10,36 @@
 #
 # updated by
 # Christian Burmeister 05/2015
+# updated by
+# adorfer 01/2017 for proxmox 4 pve
+# updated by proxmox 07/2019 for proxmox ve 5&6
 
-# Example output from agent:
-# <<<qemu>>>
-# 4 i-4B9008BE running 2048 4.0 2.7
-# 5 i-44F608B6 running 2048 0.0 0.7
-
-
-
-
-# inventory
-def inventory_qemu(checkname, info):
-    inventory = []
-    for line in info:
-        if line[2] == "running":  # only VM's running while inventory are monitored !
-            vm = line[1] # we want to capture hostname, not vm id here
-
-	    # Fix annoying OpenStack misnaming of VMs
-	    name = vm.split('-')
-	    if name[0] == "instance":
-		name[0] = "i"
-	    vm = '-'.join(name)
-	    ##
-
-            inventory.append( (vm, None) )
-    return inventory
-
-# check
-def check_qemu(name, param, info):
-    for line in info:
-        perfdata = []
-
-	vm = line[1]
-	host = vm.split('-')
-	if host[0] == "instance":
-	    host[0] = "i"
-	vm = '-'.join(host)
-
-        if vm == name:
-            item = line[0]
-            status = line[2]
-            assigned_mem = line[3]
-
-	    infotext = "%s  (id: %s" % (status, item)
-
-            if status == "running":
-		# 4 i-4B9008BE running 2048 4.0 2.7
-                if len(line) == 6:
-		    current_cpu = int(round(float(line[4])))
-		    infotext += ", CPU: %s%%" % (current_cpu)
-                    perfdata.append( ( "cpu_%", current_cpu ) )
-
-		    current_mem = int(round(float(line[5])))
-		    infotext += ", Memory: (assined: %s MB, used: %s%%" % (assigned_mem ,current_mem)
-                    perfdata.append( ( "memory_current_%", current_mem ) )
-		    perfdata.append( ( "memory__assigned_MB", assigned_mem ) )
-
-
-		infotext += ")"
-
-		warn = 80
-		if current_cpu > warn or current_mem > warn:
-			return (1, "WARN - status is " + infotext, perfdata)
-		else:
-                	return (0, "OK - status is " + infotext, perfdata)
-            else:
-		infotext += ")"
-                return (2, "CRITICAL - status is " + infotext, perfdata)
-
-    return (3, "UNKNOWN - VM not found in agent output")
-
-# declare the check to Check_MK
-check_info['qemu'] = \
-        (check_qemu, "VM %s", 1, inventory_qemu)
+if which qm >/dev/null ; then
+        echo '<<<qemu>>>'
+        qm list | grep -v VMID | while read L
+        do
+                if [[ ! -z $L ]]; then
+                        
+                        ID=$(echo $L | awk '{print $1}')
+                        XNAME=$(echo $L | awk '{$1=$NF=$(NF-1)=$(NF-2)=$(NF-3)="";print $0}')
+                        NAME=`echo $XNAME | sed 's/ /_/g'`
+                        STATE=$(echo $L | awk '{print $(NF-3)}')
+                        PID=$(ps aux | grep kvm | grep "id $ID" | head -1 | tail -1| awk '{print $2}')
+                        if [[ ! -z $PID ]] && [ "$PID" -gt "0" ]; then
+                                PS=$(ps aux | grep kvm | grep $PID | head -1|tail -1)
+                                MEM=$(echo $PS|awk -- '{print $5}')
+                                MEM=$(echo $MEM / 1024 | bc)
+                                DATA=$(top -p $PID -n 1 -b | tail -1)
+                                PCPU=$(echo $DATA | awk -- '{print $9}'|tr , .)
+                                PMEM=$(echo $DATA | awk -- '{print $10}'|tr , .)
+                                MCPU=$(echo $PS | sed 's/.*maxcpus=\([^ ]*\)\ .*/\1/' )
+                                RCPU=$(echo "scale=1; $PCPU / $MCPU"| bc)
+                        else
+                                MEM=""
+                                RCPU=""
+                                PMEM=""
+                        fi
+                        echo $ID" "$NAME" "$STATE" "$MEM" "$RCPU" "$PMEM 
+                fi
+        done
+fi
