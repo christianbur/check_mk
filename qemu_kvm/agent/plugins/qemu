@@ -23,6 +23,9 @@ if which virsh >/dev/null; then
 		if [ $PID -gt 0 ]; then
 			#DATA=$(top -p $PID -n 1 -b | tail -n 2 | head -n 1 | awk -- '{print $9" "$10}')
 			DATA=$(top -p $PID -n 1 -b | tail -1  | awk -- '{print $9" "$10}')
+			if [ -n "$DATA" ]; then
+                        	DATA=$(top -p $PID -n 1 -b | sed '$ d' | tail -1  | awk -- '{print $9" "$10}')
+                    	fi
 		else
 			DATA=""
 		fi
