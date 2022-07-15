@@ -10,6 +10,9 @@
 #
 # updated by
 # Christian Burmeister 05/2015
+#
+# updated by
+# Andreas Felme 07/2022
 
 # Example output from agent:
 # <<<qemu>>>
@@ -20,7 +23,7 @@
 
 
 # inventory
-def inventory_qemu(checkname, info):
+def inventory_qemu(info):
     inventory = []
     for line in info:
         if line[2] == "running":  # only VM's running while inventory are monitored !
